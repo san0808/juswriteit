@@ -148,10 +148,11 @@ pub fn build_ui(app: &Application) {
         // Cancel any pending auto-save
         if let Some(active) = active_note_for_loading.borrow_mut().as_mut() {
             if let Some(source_id) = active.auto_save_source_id.take() {
-                source_id.remove();
+                // Ignore the result of remove()
+                let _ = source_id.remove();
             }
         }
-        
+
         if let Some(row) = row {
             // Get the row index
             let index = row.index();
@@ -244,7 +245,8 @@ pub fn build_ui(app: &Application) {
             
             // Cancel existing auto-save timer if there is one
             if let Some(source_id) = active.auto_save_source_id.take() {
-                source_id.remove();
+                // Ignore the result of remove()
+                let _ = source_id.remove();
             }
             
             // Schedule a new auto-save
@@ -281,6 +283,8 @@ pub fn build_ui(app: &Application) {
                         // Mark as not having unsaved changes
                         if let Some(active) = active_note_ref.borrow_mut().as_mut() {
                             active.has_changes = false;
+                            // Set the ID to None *within the timer callback*
+                            active.auto_save_source_id = None;
                         }
                         
                         // Schedule status update back to normal after delay
@@ -311,17 +315,18 @@ pub fn build_ui(app: &Application) {
     let window_for_save = window.clone();
     let status_label_for_save = status_label.clone();
     
-    key_controller.connect_key_pressed(move |_, key, _keycode, state| {
+    key_controller.connect_key_pressed(clone!(@strong window_for_save, @strong text_view_for_save, @strong active_note_for_save, @strong status_label_for_save => move |_, key, _keycode, state| {
         // Check for Ctrl+S
         if key == gtk::gdk::Key::s && state.contains(gtk::gdk::ModifierType::CONTROL_MASK) {
             let mut active_note_guard = active_note_for_save.borrow_mut();
-            
+
             if let Some(active) = active_note_guard.as_mut() {
                 // Cancel any pending auto-save
                 if let Some(source_id) = active.auto_save_source_id.take() {
-                    source_id.remove();
+                    // Ignore the result of remove()
+                    let _ = source_id.remove();
                 }
-                
+
                 // Get current content
                 let buffer = text_view_for_save.buffer();
                 let content = buffer.text(
@@ -368,7 +373,7 @@ pub fn build_ui(app: &Application) {
         
         // Let other handlers process the key press
         glib::Propagation::Proceed
-    });
+    }));
     
     // Add the controller to the window
     window.add_controller(key_controller);
