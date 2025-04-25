@@ -27,7 +27,7 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
   - [x] **Basic Application Structure:** Implement Gtk::Application and Gtk::ApplicationWindow.
   - [x] **Two-Pane Layout:** Use Gtk::Paned to create the sidebar/editor split.
   - [x] **Note Directory Handling:** Create/detect \~/.local/share/juswriteit/notes/ on startup. Handle potential errors.
-  - [ ] **Note List (Simple):** Implement a Gtk::ListBox in the left pane. Populate it by reading .md filenames from the notes directory.
+  - [x] **Note List (Simple):** Implement a Gtk::ListBox in the left pane. Populate it by reading .md filenames from the notes directory.
   - [ ] **Editor Area:** Implement a Gtk::TextView within a Gtk::ScrolledWindow in the right pane.
   - [ ] **Load Note:** Connect ListBox::row-selected signal to read the corresponding .md file content into the TextView's TextBuffer.
   - [ ] **Save Note (Manual):** Implement saving the TextBuffer content back to the selected file (e.g., via Ctrl+S or a save button). Handle overwriting.
