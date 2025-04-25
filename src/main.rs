@@ -1,5 +1,5 @@
 use gtk::prelude::*; // Import common GTK traits
-use gtk::{glib, Application, ApplicationWindow};
+use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label}; // Added Paned, Orientation, Label
 
 // Application ID (used by the system to identify the app)
 // Follows reverse domain name notation
@@ -31,7 +31,39 @@ fn build_ui(app: &Application) {
         // .icon_name("org.gtk.TextEditor") // Example: Use a standard icon for now
         .build();
 
-    // TODO: Add widgets like Paned, ListBox, TextView here later
+    // Create a Paned widget (Horizontal orientation for left/right split)
+    let paned = Paned::builder()
+        .orientation(Orientation::Horizontal)
+        .wide_handle(true) // Makes the separator easier to grab
+        .build();
+
+    // Placeholder for the left pane (Note List)
+    let left_pane = Label::builder()
+        .label("Note List Area")
+        .halign(gtk::Align::Center)
+        .valign(gtk::Align::Center)
+        .build();
+    // Make the left pane shrinkable but not expandable by default
+    left_pane.set_size_request(200, -1); // Request a minimum width
+
+    // Placeholder for the right pane (Editor)
+    let right_pane = Label::builder()
+        .label("Editor Area")
+        .halign(gtk::Align::Center)
+        .valign(gtk::Align::Center)
+        .hexpand(true) // Allow the right pane to expand
+        .vexpand(true)
+        .build();
+
+    // Add the panes to the Paned widget
+    paned.set_start_child(Some(&left_pane));
+    paned.set_end_child(Some(&right_pane));
+
+    // Set the initial position of the divider (e.g., 250 pixels from the left)
+    paned.set_position(250);
+
+    // Set the Paned widget as the child of the window
+    window.set_child(Some(&paned));
 
     // Present the window to the user
     window.present();
