@@ -14,8 +14,10 @@ license = "MIT" # Or your preferred license
 # Use the gtk4-rs umbrella crate which re-exports gtk4, glib, gdk, etc.
 gtk = { version = "0.8.1", package = "gtk4", features = ["v4_10"] } # Targeting GTK 4.10+ for latest features
 
+# For better date/time handling
+chrono = "0.4"
+
 # Optional crates we might add later (commented out for now)
-# chrono = { version = "0.4", features = ["serde"] }
 # serde = { version = "1.0", features = ["derive"] }
 # toml = "0.8"
 # log = "0.4"

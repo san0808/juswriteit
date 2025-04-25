@@ -31,8 +31,8 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
   - [x] **Editor Area:** Implement a Gtk::TextView within a Gtk::ScrolledWindow in the right pane.
   - [x] **Load Note:** Connect ListBox::row-selected signal to read the corresponding .md file content into the TextView's TextBuffer.
   - [x] **Save Note (Manual):** Implement saving the TextBuffer content back to the selected file (e.g., via Ctrl+S or a save button). Handle overwriting.
-  - [ ] **Create New Note:** Add a Gtk::Button (e.g., in a Gtk::HeaderBar) to create a new Untitled Note \[timestamp\].md, add it to the ListBox, and select it.
-  - [ ] **Basic Error Handling:** Use Result for file I/O and report critical errors (e.g., cannot create notes directory) gracefully (e.g., Gtk::MessageDialog).
+  - [x] **Create New Note:** Add a Gtk::Button (e.g., in a Gtk::HeaderBar) to create a new Untitled Note \[timestamp\].md, add it to the ListBox, and select it.
+  - [x] **Basic Error Handling:** Use Result for file I/O and report critical errors (e.g., cannot create notes directory) gracefully (e.g., Gtk::MessageDialog).
 
 ### **Phase 2: Core Enhancements**
 
@@ -42,7 +42,7 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
      * Display modification date alongside the title in the ListBox rows. (Requires reading file metadata).
      * Sort list (e.g., by modification date, descending).
      * Consider migrating from ListBox to ListView with a Gio::ListStore model for better scalability and features if needed.
-  - [ ] **Delete Note:** Implement note deletion (e.g., via a button or context menu) with a confirmation dialog (Gtk::MessageDialog). Update the list and potentially clear the editor.
+  - [x] **Delete Note:** Implement note deletion (e.g., via a button or context menu) with a confirmation dialog (Gtk::MessageDialog). Update the list and potentially clear the editor.
   - [ ] **Rename Note:** Implement renaming (e.g., via context menu or double-click). Rename the file and update the list item.
   - [ ] **Auto-Save:** Implement optional auto-saving triggered by TextBuffer::changed signal after a short delay (using glib::timeout\_add\_local\_once).
   - [ ] **Status Bar Info:** Add a simple status bar (e.g., using Gtk::Box at the bottom) to show word count.
