@@ -1,7 +1,7 @@
 use gtk::prelude::*;
-use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label, 
+use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label,
           ListBox, ScrolledWindow, Box, TextView, HeaderBar, Button,
-          EventControllerKey};
+          EventControllerKey}; // Removed ResponseType
 use glib::clone;
 use std::cell::RefCell;
 use std::rc::Rc;

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
-use gtk::{glib, prelude::*};
-use gtk::{ApplicationWindow, Dialog, ResponseType, Label, Box, Orientation};
+use gtk::{glib}; // Removed prelude, Box, Label, Orientation
+use gtk::{ApplicationWindow, AlertDialog};
+use gtk::gio; // Added gio import
 
 /// Get the path to the notes directory
 pub fn get_notes_dir() -> PathBuf {
@@ -8,34 +9,20 @@ pub fn get_notes_dir() -> PathBuf {
     user_data_dir.join("juswriteit/notes")
 }
 
-/// Show an error dialog
+/// Show an error dialog using AlertDialog
 pub fn show_error_dialog(parent: &ApplicationWindow, title: &str, message: &str) {
-    let dialog = Dialog::builder()
-        .title(title)
-        .transient_for(parent)
+    let dialog = AlertDialog::builder()
         .modal(true)
+        .message(message)
+        .detail(title) // Use detail for the title-like text
         .build();
-    
-    let content_area = dialog.content_area();
-    let message_label = Label::builder()
-        .label(message)
-        .xalign(0.0)
-        .margin_start(20)
-        .margin_end(20)
-        .margin_top(20)
-        .margin_bottom(20)
-        .build();
-    
-    content_area.append(&message_label);
-    
-    dialog.add_button("OK", ResponseType::Ok);
-    dialog.set_default_response(ResponseType::Ok);
-    
-    dialog.connect_response(|dialog, _| {
-        dialog.close();
-    });
-    
-    dialog.present();
+
+    // Pass the slice directly, without Some()
+    dialog.set_buttons(&["OK"]);
+    dialog.set_default_button(0); // Index of the "OK" button
+
+    // Show the dialog (no response needed for simple error)
+    dialog.show(Some(parent));
 }
 
 /// Schedule an auto-save operation with a delay
@@ -50,66 +37,38 @@ pub fn schedule_auto_save<F: Fn() + 'static>(delay_ms: u32, callback: F) -> glib
     )
 }
 
-/// Create a confirmation dialog
+/// Create a confirmation dialog using AlertDialog
 pub fn show_confirmation_dialog<F: Fn() + 'static + Clone>(
     parent: &ApplicationWindow,
-    title: &str,
+    _title: &str, // Prefix with underscore to silence warning
     message: &str,
     details: &str,
     confirm_action: F) {
-    
-    let dialog = Dialog::builder()
-        .title(title)
-        .transient_for(parent)
+
+    let dialog = AlertDialog::builder()
         .modal(true)
+        .message(details) // Main message goes here
+        .detail(message) // Title-like message goes heree
         .build();
-    
-    // Add message
-    let content_area = dialog.content_area();
-    let message_box = Box::builder()
-        .orientation(Orientation::Vertical)
-        .spacing(10)
-        .margin_start(20)
-        .margin_end(20)
-        .margin_top(20)
-        .margin_bottom(20)
-        .build();
-    
-    let title_label = Label::builder()
-        .label(message)
-        .xalign(0.0)
-        .build();
-    title_label.add_css_class("title-3");
-    
-    let detail_label = Label::builder()
-        .label(details)
-        .xalign(0.0)
-        .build();
-    
-    message_box.append(&title_label);
-    message_box.append(&detail_label);
-    content_area.append(&message_box);
-    
-    // Add Cancel button
-    dialog.add_button("Cancel", ResponseType::Cancel);
-    
-    // Add confirm button (destructive)
-    let confirm_button = dialog.add_button("Confirm", ResponseType::Accept);
-    confirm_button.add_css_class("destructive-action");
-    
-    dialog.set_default_response(ResponseType::Cancel);
-    
-    // Use the Clone trait properly with the confirm_action
-    let action_clone = confirm_action.clone();
-    
-    // Handle response
-    dialog.connect_response(move |dialog, response| {
-        dialog.close();
-        
-        if response == ResponseType::Accept {
-            action_clone();
+
+    // Pass the slice directly, without Some()
+    dialog.set_buttons(&["Cancel", "Confirm"]);
+    // Note: AlertDialog doesn't have a direct way to set button appearance like Dialog did.
+    // The appearance might depend on the theme or button order/role conventions.
+    // We'll rely on the button text ("Confirm") for clarity.
+    dialog.set_default_button(0); // Default to Cancel (index 0)
+    dialog.set_cancel_button(0); // Cancel is index 0
+
+    // Use glib's clone macro
+    use glib::clone;
+
+    // Choose presents the dialog and calls the callback with the index of the pressed button
+    dialog.choose(Some(parent), None::<&gio::Cancellable>, clone!(@strong confirm_action => move |response| {
+        // response is Result<i32, glib::Error> where i32 is the button index
+        if let Ok(index) = response {
+            if index == 1 { // Index 1 corresponds to "Confirm"
+                confirm_action();
+            }
         }
-    });
-    
-    dialog.present();
+    }));
 }
