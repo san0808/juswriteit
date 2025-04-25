@@ -1,9 +1,11 @@
 use gtk::prelude::*; // Import common GTK traits
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label, 
-          ListBox, ScrolledWindow, Box, TextView}; // Added TextView
-use std::fs::{self, File}; // For directory creation, listing, and file operations
-use std::io::Read; // For reading file content
-use std::path::PathBuf; // For path manipulation
+          ListBox, ScrolledWindow, Box, TextView, EventControllerKey}; // Added EventControllerKey
+use std::fs::{self, File};
+use std::io::{Read, Write}; // Added Write for saving files
+use std::path::PathBuf;
+use std::cell::RefCell; // For shared mutable state
+use std::rc::Rc; // For reference counting
 
 // Application ID (used by the system to identify the app)
 // Follows reverse domain name notation
@@ -109,15 +111,12 @@ fn build_ui(app: &Application) {
         .vexpand(true) // Allow to expand vertically
         .build();
 
-    // Add the panes to the Paned widget
-    paned.set_start_child(Some(&left_pane));
-    paned.set_end_child(Some(&editor_scrolled_window));
-
-    // Set the initial position of the divider (e.g., 250 pixels from the left)
-    paned.set_position(250);
-
-    // Set the Paned widget as the child of the window
-    window.set_child(Some(&paned));
+    // Create a shared variable to track the currently selected note path
+    let current_note_path: Rc<RefCell<Option<PathBuf>>> = Rc::new(RefCell::new(None));
+    
+    // Clone TextView for use in the row_selected handler
+    let text_view_for_loading = text_view.clone();
+    let current_note_path_for_loading = current_note_path.clone();
 
     // Connect the row-selected signal to load note content
     list_box.connect_row_selected(move |_, row| {
@@ -126,7 +125,6 @@ fn build_ui(app: &Application) {
             let index = row.index();
             
             // Skip if it's a placeholder or error row 
-            // (this assumes placeholder or error rows would be the only ones when no valid notes exist)
             if index < 0 {
                 return;
             }
@@ -139,18 +137,71 @@ fn build_ui(app: &Application) {
                 let notes_dir = get_notes_dir();
                 let file_path = notes_dir.join(format!("{}.md", title));
                 
+                // Update the current note path
+                *current_note_path_for_loading.borrow_mut() = Some(file_path.clone());
+                
                 // Load the content into the TextView
-                if let Err(e) = load_note_content(&text_view, &file_path) {
+                if let Err(e) = load_note_content(&text_view_for_loading, &file_path) {
                     eprintln!("Error loading note content: {}", e);
                     // Future: Show an error dialog or message
                 }
             }
         } else {
             // No row selected, clear the TextView
-            let buffer = text_view.buffer();
+            let buffer = text_view_for_loading.buffer();
             buffer.set_text("");
+            
+            // Clear the current note path
+            *current_note_path_for_loading.borrow_mut() = None;
         }
     });
+
+    // Add keyboard shortcut handling (Ctrl+S for save)
+    let key_controller = EventControllerKey::new();
+    
+    // Clone TextView and current note path for use in the key pressed handler
+    let text_view_for_save = text_view.clone();
+    let current_note_path_for_save = current_note_path.clone();
+    
+    key_controller.connect_key_pressed(move |_, key, _keycode, state| {
+        // Check for Ctrl+S - using gtk constants
+        if key == gtk::gdk::Key::s && state.contains(gtk::gdk::ModifierType::CONTROL_MASK) {
+            if let Some(file_path) = current_note_path_for_save.borrow().clone() {
+                match save_note_content(&text_view_for_save, &file_path) {
+                    Ok(_) => {
+                        println!("Note saved successfully to {:?}", file_path);
+                        // Future: Show a success notification
+                    },
+                    Err(e) => {
+                        eprintln!("Error saving note: {}", e);
+                        // Future: Show an error dialog
+                    }
+                }
+            } else {
+                eprintln!("No note is currently selected to save");
+                // Future: Show a message dialog
+            }
+            
+            // Return true to indicate we handled the key press
+            return glib::Propagation::Stop;
+        }
+        
+        // Let other handlers process the key press
+        glib::Propagation::Proceed
+    });
+    
+    // Add the controller to the window
+    window.add_controller(key_controller);
+
+    // Add the panes to the Paned widget
+    paned.set_start_child(Some(&left_pane));
+    paned.set_end_child(Some(&editor_scrolled_window));
+
+    // Set the initial position of the divider (e.g., 250 pixels from the left)
+    paned.set_position(250);
+
+    // Set the Paned widget as the child of the window
+    window.set_child(Some(&paned));
 
     // Populate the notes list
     populate_notes_list(&list_box);
@@ -174,6 +225,27 @@ fn load_note_content(text_view: &TextView, file_path: &PathBuf) -> Result<(), St
     
     // Set content to buffer
     buffer.set_text(&content);
+    
+    Ok(())
+}
+
+// Function to save note content from a TextView to a file
+fn save_note_content(text_view: &TextView, file_path: &PathBuf) -> Result<(), String> {
+    // Get the TextView's buffer
+    let buffer = text_view.buffer();
+    
+    // Get the content from the buffer (start to end)
+    let start = buffer.start_iter();
+    let end = buffer.end_iter();
+    let content = buffer.text(&start, &end, true)
+        .to_string(); // Convert GString to String directly
+    
+    // Write content to file
+    let mut file = File::create(file_path)
+        .map_err(|e| format!("Failed to create file {}: {}", file_path.display(), e))?;
+    
+    file.write_all(content.as_bytes())
+        .map_err(|e| format!("Failed to write to file {}: {}", file_path.display(), e))?;
     
     Ok(())
 }
