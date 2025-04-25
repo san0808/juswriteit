@@ -1,11 +1,41 @@
 use gtk::prelude::*; // Import common GTK traits
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label}; // Added Paned, Orientation, Label
+use std::fs; // For directory creation
+use std::path::PathBuf; // For path manipulation
 
 // Application ID (used by the system to identify the app)
 // Follows reverse domain name notation
 const APP_ID: &str = "com.example.juswriteit"; // Replace example.com with your domain or username
 
+// Helper function to get the path to the notes directory
+fn get_notes_dir() -> PathBuf {
+    // glib::user_data_dir() returns a PathBuf directly
+    let user_data_dir = glib::user_data_dir();
+    
+    // Join the path
+    user_data_dir.join("juswriteit/notes")
+}
+
+// Function to ensure the notes directory exists
+fn ensure_notes_dir_exists() -> Result<PathBuf, String> {
+    let notes_dir = get_notes_dir();
+    if !notes_dir.exists() {
+        println!("Notes directory not found, creating at: {:?}", notes_dir);
+        fs::create_dir_all(&notes_dir)
+            .map_err(|e| format!("Failed to create notes directory {:?}: {}", notes_dir, e))?;
+    }
+    Ok(notes_dir)
+}
+
 fn main() -> glib::ExitCode {
+    // Ensure the notes directory exists before starting the app
+    if let Err(err) = ensure_notes_dir_exists() {
+        eprintln!("Error initializing notes directory: {}", err);
+        // Optionally show a graphical error dialog here later
+        return glib::ExitCode::FAILURE; // Indicate failure
+    }
+
+
     // Register resources - Placeholder for future icons, CSS, etc.
     // gio::resources_register_include!("compiled.gresource")
     //     .expect("Failed to register resources.");
