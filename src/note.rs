@@ -1,4 +1,4 @@
-use std::fs::{self, File}; // Removed Metadata
+use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -85,6 +85,38 @@ impl Note {
     pub fn delete(&self) -> Result<(), String> {
         fs::remove_file(&self.path)
             .map_err(|e| format!("Failed to delete note: {}", e))
+    }
+
+    /// Rename the note file and update the note's state
+    pub fn rename(&mut self, new_title: &str) -> Result<(), String> {
+        // Basic validation for the new title
+        if new_title.trim().is_empty() {
+            return Err("New title cannot be empty.".to_string());
+        }
+        // Add more validation if needed (e.g., disallowed characters)
+
+        let notes_dir = crate::utils::get_notes_dir();
+        let new_path = notes_dir.join(format!("{}.md", new_title));
+
+        // Check if a note with the new title already exists
+        if new_path.exists() && new_path != self.path {
+            return Err(format!("A note named \"{}\" already exists.", new_title));
+        }
+
+        // Attempt to rename the file
+        fs::rename(&self.path, &new_path)
+            .map_err(|e| format!("Failed to rename note file: {}", e))?;
+
+        // Update the note's state
+        self.path = new_path;
+        self.title = new_title.to_string();
+
+        // Update modification time (optional, renaming might not update it)
+        let metadata = fs::metadata(&self.path)
+            .map_err(|e| format!("Failed to get metadata after renaming: {}", e))?;
+        self.modified_time = metadata.modified().ok();
+
+        Ok(())
     }
 
     /// Get all notes in the notes directory

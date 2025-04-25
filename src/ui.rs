@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label,
           ListBox, ScrolledWindow, Box, TextView, HeaderBar, Button,
-          EventControllerKey};
+          EventControllerKey, Entry, Dialog, ResponseType};
 use glib::clone;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -53,23 +53,30 @@ pub fn build_ui(app: &Application) {
         .show_title_buttons(true)
         .title_widget(&Label::new(Some("juswriteit")))
         .build();
-    
+
     // Create buttons for the header bar
     let new_note_button = Button::builder()
         .label("New Note")
         .tooltip_text("Create a new note")
         .build();
-    
+
+    let rename_note_button = Button::builder() // Added Rename button
+        .label("Rename")
+        .tooltip_text("Rename current note")
+        .sensitive(false) // Initially disabled
+        .build();
+
     let delete_note_button = Button::builder()
         .label("Delete")
         .tooltip_text("Delete current note")
-        .sensitive(false) // Initially disabled until a note is selected
+        .sensitive(false)
         .build();
-    
+
     // Add buttons to the HeaderBar
     header_bar.pack_start(&new_note_button);
+    header_bar.pack_start(&rename_note_button); // Add Rename button
     header_bar.pack_end(&delete_note_button);
-    
+
     // Set the HeaderBar as the window's titlebar
     window.set_titlebar(Some(&header_bar));
 
@@ -142,14 +149,16 @@ pub fn build_ui(app: &Application) {
     // Create a shared variable to track the active note
     let active_note: Rc<RefCell<Option<ActiveNote>>> = Rc::new(RefCell::new(None));
     
-    // Enable/disable delete button based on selection
+    // Enable/disable buttons based on selection
     let delete_button_ref = delete_note_button.clone();
+    let rename_button_ref = rename_note_button.clone(); // Clone Rename button
     let active_note_for_button = active_note.clone();
     
     // Update UI based on selection state
     let update_ui_for_selection = move || {
         let has_selection = active_note_for_button.borrow().is_some();
         delete_button_ref.set_sensitive(has_selection);
+        rename_button_ref.set_sensitive(has_selection); // Enable/disable Rename button
     };
     
     // Clone for row selection handler
@@ -415,7 +424,66 @@ pub fn build_ui(app: &Application) {
             }
         }
     });
-    
+
+    // Connect the "Rename" button
+    let list_box_for_rename = list_box.clone();
+    let active_note_for_rename = active_note.clone();
+    let window_for_rename = window.clone();
+
+    // Use clone! for the outer closure
+    rename_note_button.connect_clicked(clone!(@strong window_for_rename, @strong active_note_for_rename, @strong list_box_for_rename => move |_| {
+        // Borrow immutably first to get the title
+        let current_title = active_note_for_rename.borrow().as_ref().map(|a| a.title.clone());
+
+        // Only proceed if there is an active note and we got a title
+        if let Some(current_title) = current_title {
+            // Show rename dialog, passing owned String
+            // Use clone! again for the inner closure (on_confirm)
+            // No mutable borrow is held here anymore
+            show_rename_dialog(
+                &window_for_rename,
+                current_title, // Pass owned String
+                clone!(@strong active_note_for_rename, @strong window_for_rename, @strong list_box_for_rename => move |new_title| {
+                    // This closure is called when the user confirms the rename
+                    let rename_result = { // Create a scope for the mutable borrow
+                        let mut active_guard = active_note_for_rename.borrow_mut();
+                        if let Some(active_inner) = active_guard.as_mut() {
+                            match active_inner.note.rename(&new_title) {
+                                Ok(_) => {
+                                    // Update active note title within the borrow
+                                    active_inner.title = new_title.clone();
+                                    // Update window title
+                                    window_for_rename.set_title(Some(&format!("{} - juswriteit", new_title)));
+                                    Ok(()) // Indicate success
+                                },
+                                Err(e) => {
+                                    eprintln!("Error renaming note: {}", e);
+                                    Err(e) // Propagate error
+                                }
+                            }
+                        } else {
+                            Err("No active note found during rename confirmation.".to_string())
+                        }
+                        // active_guard is dropped here, releasing the mutable borrow
+                    };
+
+                    // Handle result outside the borrow scope
+                    match rename_result {
+                        Ok(_) => {
+                            // Refresh list and reselect *after* borrow is released
+                            refresh_note_list(&list_box_for_rename);
+                            select_note_by_title(&list_box_for_rename, &new_title);
+                        },
+                        Err(e) => {
+                            // Pass cloned window to error dialog
+                            show_error_dialog(&window_for_rename, "Rename Error", &e);
+                        }
+                    }
+                })
+            );
+        }
+    }));
+
     // Connect the "Delete" button
     let list_box_for_delete = list_box.clone();
     let active_note_for_delete = active_note.clone();
@@ -628,4 +696,57 @@ fn select_note_by_title(list_box: &ListBox, title_to_find: &str) {
 
         row_index += 1;
     }
+}
+
+
+/// Shows a dialog to rename a note
+fn show_rename_dialog<F>(parent: &ApplicationWindow, current_title: String, on_confirm: F) // Take owned String
+where
+    F: Fn(String) + 'static,
+{
+    let dialog = Dialog::builder()
+        .title("Rename Note")
+        .transient_for(parent)
+        .modal(true)
+        .build();
+
+    let content_area = dialog.content_area();
+
+    let entry = Entry::builder()
+        .text(&current_title) // Borrow owned String here
+        .activates_default(true) // Allow Enter key to confirm
+        .margin_start(10)
+        .margin_end(10)
+        .margin_top(10)
+        .margin_bottom(10)
+        .build();
+
+    content_area.append(&entry);
+
+    dialog.add_button("Cancel", ResponseType::Cancel);
+    let _confirm_button = dialog.add_button("Rename", ResponseType::Accept); // Prefix unused variable
+    dialog.set_default_response(ResponseType::Accept); // Default to Rename button
+
+    // Focus the entry field initially
+    entry.grab_focus();
+    // Select the text for easy replacement
+    entry.select_region(0, -1);
+
+    // Clone parent for use inside the closure if needed for error dialog
+    let parent_clone = parent.clone();
+    dialog.connect_response(move |dialog, response| {
+        dialog.close();
+        if response == ResponseType::Accept {
+            let new_title = entry.text().to_string();
+            // Use owned current_title here
+            if !new_title.trim().is_empty() && new_title != current_title {
+                on_confirm(new_title);
+            } else if new_title.trim().is_empty() {
+                // Use cloned parent here
+                show_error_dialog(&parent_clone, "Rename Error", "New title cannot be empty.");
+            }
+        }
+    });
+
+    dialog.present();
 }
