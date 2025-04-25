@@ -1,7 +1,8 @@
 use gtk::prelude::*; // Import common GTK traits
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label, 
           ListBox, ScrolledWindow, Box, TextView}; // Added TextView
-use std::fs; // For directory creation and listing
+use std::fs::{self, File}; // For directory creation, listing, and file operations
+use std::io::Read; // For reading file content
 use std::path::PathBuf; // For path manipulation
 
 // Application ID (used by the system to identify the app)
@@ -110,7 +111,7 @@ fn build_ui(app: &Application) {
 
     // Add the panes to the Paned widget
     paned.set_start_child(Some(&left_pane));
-    paned.set_end_child(Some(&editor_scrolled_window)); // Updated to use editor_scrolled_window instead of right_pane
+    paned.set_end_child(Some(&editor_scrolled_window));
 
     // Set the initial position of the divider (e.g., 250 pixels from the left)
     paned.set_position(250);
@@ -118,11 +119,63 @@ fn build_ui(app: &Application) {
     // Set the Paned widget as the child of the window
     window.set_child(Some(&paned));
 
+    // Connect the row-selected signal to load note content
+    list_box.connect_row_selected(move |_, row| {
+        if let Some(row) = row {
+            // Get the row index
+            let index = row.index();
+            
+            // Skip if it's a placeholder or error row 
+            // (this assumes placeholder or error rows would be the only ones when no valid notes exist)
+            if index < 0 {
+                return;
+            }
+            
+            // Get the note title from the row's child (Label)
+            if let Some(label) = row.child().and_then(|w| w.downcast::<Label>().ok()) {
+                let title = label.label();
+                
+                // Build the full path to the note file
+                let notes_dir = get_notes_dir();
+                let file_path = notes_dir.join(format!("{}.md", title));
+                
+                // Load the content into the TextView
+                if let Err(e) = load_note_content(&text_view, &file_path) {
+                    eprintln!("Error loading note content: {}", e);
+                    // Future: Show an error dialog or message
+                }
+            }
+        } else {
+            // No row selected, clear the TextView
+            let buffer = text_view.buffer();
+            buffer.set_text("");
+        }
+    });
+
     // Populate the notes list
     populate_notes_list(&list_box);
 
     // Present the window to the user
     window.present();
+}
+
+// Function to load note content from a file into a TextView
+fn load_note_content(text_view: &TextView, file_path: &PathBuf) -> Result<(), String> {
+    // Get the TextView's buffer (this directly returns a TextBuffer, not an Option)
+    let buffer = text_view.buffer();
+    
+    // Read file content
+    let mut file = File::open(file_path)
+        .map_err(|e| format!("Failed to open file {}: {}", file_path.display(), e))?;
+    
+    let mut content = String::new();
+    file.read_to_string(&mut content)
+        .map_err(|e| format!("Failed to read file {}: {}", file_path.display(), e))?;
+    
+    // Set content to buffer
+    buffer.set_text(&content);
+    
+    Ok(())
 }
 
 // Function to populate the ListBox with notes
