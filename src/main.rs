@@ -1,6 +1,6 @@
 use gtk::prelude::*; // Import common GTK traits
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label, 
-          ListBox, ScrolledWindow, Box}; // Added ListBox, ScrolledWindow, Box
+          ListBox, ScrolledWindow, Box, TextView}; // Added TextView
 use std::fs; // For directory creation and listing
 use std::path::PathBuf; // For path manipulation
 
@@ -87,18 +87,30 @@ fn build_ui(app: &Application) {
     
     left_pane.append(&scrolled_window);
 
-    // Placeholder for the right pane (Editor)
-    let right_pane = Label::builder()
-        .label("Editor Area")
-        .halign(gtk::Align::Center)
-        .valign(gtk::Align::Center)
-        .hexpand(true) // Allow the right pane to expand
-        .vexpand(true)
+    // Create the editor (TextView) for the right pane
+    let text_view = TextView::builder()
+        .wrap_mode(gtk::WrapMode::Word) // Enable word wrapping
+        .monospace(false) // Use proportional font (not monospace) for better readability
+        .margin_start(12)
+        .margin_end(12)
+        .margin_top(12)
+        .margin_bottom(12)
+        .build();
+    
+    // Make the TextView editable
+    text_view.set_editable(true);
+    
+    // Create a ScrolledWindow to contain the TextView with scrolling
+    let editor_scrolled_window = ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Never) // Disable horizontal scrolling (due to word wrap)
+        .child(&text_view)
+        .hexpand(true) // Allow to expand horizontally
+        .vexpand(true) // Allow to expand vertically
         .build();
 
     // Add the panes to the Paned widget
     paned.set_start_child(Some(&left_pane));
-    paned.set_end_child(Some(&right_pane));
+    paned.set_end_child(Some(&editor_scrolled_window)); // Updated to use editor_scrolled_window instead of right_pane
 
     // Set the initial position of the divider (e.g., 250 pixels from the left)
     paned.set_position(250);
