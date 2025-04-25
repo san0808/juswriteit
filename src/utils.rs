@@ -1,7 +1,7 @@
 use std::path::PathBuf;
-use gtk::{glib}; // Removed prelude, Box, Label, Orientation
+use gtk::{glib};
 use gtk::{ApplicationWindow, AlertDialog};
-use gtk::gio; // Added gio import
+use gtk::gio;
 
 /// Get the path to the notes directory
 pub fn get_notes_dir() -> PathBuf {
@@ -26,13 +26,15 @@ pub fn show_error_dialog(parent: &ApplicationWindow, title: &str, message: &str)
 }
 
 /// Schedule an auto-save operation with a delay
-pub fn schedule_auto_save<F: Fn() + 'static>(delay_ms: u32, callback: F) -> glib::SourceId {
+// Change Fn() to FnMut() to allow mutation of captured variables
+pub fn schedule_auto_save<F: FnMut() + 'static>(delay_ms: u32, callback: F) -> glib::SourceId {
+    // Wrap the callback in another closure that returns ControlFlow::Break
+    let mut callback = callback; // Make callback mutable so it can be called
     glib::timeout_add_local(
         std::time::Duration::from_millis(delay_ms.into()),
         move || {
-            callback();
-            // Don't repeat
-            glib::ControlFlow::Break
+            callback(); // Call the original callback
+            glib::ControlFlow::Break // Return Break to stop the timer
         }
     )
 }

@@ -1,24 +1,39 @@
 use gtk::prelude::*;
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label,
           ListBox, ScrolledWindow, Box, TextView, HeaderBar, Button,
-          EventControllerKey}; // Removed ResponseType
+          EventControllerKey};
 use glib::clone;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::PathBuf;
+use chrono::{DateTime, Local};
 
 use crate::note::Note;
 use crate::utils::{show_error_dialog, show_confirmation_dialog, schedule_auto_save};
 
 // Struct to handle active note state
+// #[derive(Clone)] // Remove derive Clone
 struct ActiveNote {
     path: PathBuf,
     title: String,
-    // Flag to track if there are unsaved changes
     has_changes: bool,
-    // ID of the scheduled auto-save operation (if any)
     auto_save_source_id: Option<glib::SourceId>,
+    note: Note,
 }
+
+// Manual implementation of Clone for ActiveNote
+impl Clone for ActiveNote {
+    fn clone(&self) -> Self {
+        ActiveNote {
+            path: self.path.clone(),
+            title: self.title.clone(),
+            has_changes: self.has_changes,
+            auto_save_source_id: None, // SourceId cannot be cloned, set to None
+            note: self.note.clone(),
+        }
+    }
+}
+
 
 // Auto-save delay in milliseconds
 const AUTO_SAVE_DELAY_MS: u32 = 2000; // 2 seconds
@@ -67,6 +82,7 @@ pub fn build_ui(app: &Application) {
     // Create a ListBox for the notes list
     let list_box = ListBox::builder()
         .selection_mode(gtk::SelectionMode::Single)
+        .css_classes(vec!["notes-list"]) // Add a CSS class for potential styling
         .build();
 
     // Create a ScrolledWindow to contain the ListBox with scrolling
@@ -144,7 +160,7 @@ pub fn build_ui(app: &Application) {
     let status_label_for_loading = status_label.clone();
 
     // Connect row-selected signal to load note content
-    list_box.connect_row_selected(move |_, row| {
+    list_box.connect_row_selected(move |_listbox, row_opt| { // Add underscore
         // Cancel any pending auto-save
         if let Some(active) = active_note_for_loading.borrow_mut().as_mut() {
             if let Some(source_id) = active.auto_save_source_id.take() {
@@ -153,39 +169,34 @@ pub fn build_ui(app: &Application) {
             }
         }
 
-        if let Some(row) = row {
-            // Get the row index
-            let index = row.index();
-            
-            // Skip if it's a placeholder or error row 
-            if index < 0 {
-                *active_note_for_loading.borrow_mut() = None;
-                update_ui_for_selection_on_load();
-                return;
-            }
-            
-            // Get the note title from the row's child (Label)
-            if let Some(label) = row.child().and_then(|w| w.downcast::<Label>().ok()) {
-                let title = label.label();
-                
+        if let Some(row) = row_opt {
+            // Get the note title from the custom widget inside the row
+            let title = row.child()
+                .and_then(|child_box| child_box.downcast::<Box>().ok())
+                .and_then(|hbox| hbox.first_child()) // Get the first child (title label)
+                .and_then(|widget| widget.downcast::<Label>().ok())
+                .map(|label| label.label().to_string());
+
+            if let Some(title) = title {
                 // Build the full path to the note file
                 let notes_dir = crate::utils::get_notes_dir();
                 let file_path = notes_dir.join(format!("{}.md", title));
-                
+
                 // Load the note content
                 match Note::load(&file_path) {
                     Ok(note) => {
                         // Update the TextView
                         text_view_for_loading.buffer().set_text(&note.content);
-                        
+
                         // Update the active note
                         *active_note_for_loading.borrow_mut() = Some(ActiveNote {
                             path: file_path,
                             title: title.to_string(),
                             has_changes: false,
                             auto_save_source_id: None,
+                            note: note.clone(), // Store the loaded note
                         });
-                        
+
                         // Update window title
                         window_for_loading.set_title(Some(&format!("{} - juswriteit", title)));
                         
@@ -201,6 +212,12 @@ pub fn build_ui(app: &Application) {
                         *active_note_for_loading.borrow_mut() = None;
                     }
                 }
+            } else {
+                 // Handle case where title couldn't be extracted (e.g., placeholder row)
+                *active_note_for_loading.borrow_mut() = None;
+                text_view_for_loading.buffer().set_text("");
+                window_for_loading.set_title(Some("juswriteit"));
+                status_label_for_loading.set_text("Ready");
             }
         } else {
             // No row selected, clear the TextView
@@ -222,74 +239,56 @@ pub fn build_ui(app: &Application) {
     let buffer = text_view.buffer();
     let active_note_for_changes = active_note.clone();
     let text_view_for_changes = text_view.clone();
-    let window_for_changes = window.clone();
+    let _window_for_changes = window.clone(); // Add underscore for unused variable
     let status_label_for_changes = status_label.clone();
 
-    // Fix the unused variable warning by adding underscore prefix
     buffer.connect_changed(move |_| {
         let mut active_note_guard = active_note_for_changes.borrow_mut();
-        
+
         if let Some(active) = active_note_guard.as_mut() {
             // Mark as having unsaved changes
             active.has_changes = true;
-            
-            // Update status label to show unsaved state
+            // Update the content in the active note object immediately
             let content = text_view_for_changes.buffer().text(
                 &text_view_for_changes.buffer().start_iter(),
                 &text_view_for_changes.buffer().end_iter(),
                 false
             ).to_string();
-            
+            active.note.content = content.clone(); // Update content in the stored note
+
+            // Update status label to show unsaved state
             let word_count = count_words(&content);
             status_label_for_changes.set_text(&format!("{} words (unsaved)", word_count));
             
             // Cancel existing auto-save timer if there is one
             if let Some(source_id) = active.auto_save_source_id.take() {
-                // Ignore the result of remove()
                 let _ = source_id.remove();
             }
-            
+
             // Schedule a new auto-save
-            let note_path = active.path.clone();
-            // Rename to add underscore prefix to unused variable
-            let _window_ref = window_for_changes.clone();
-            let text_view_ref = text_view_for_changes.clone();
+            let mut note_to_save = active.note.clone();
+            // Use glib::clone! to capture variables correctly for the inner closure
             let active_note_ref = active_note_for_changes.clone();
             let status_label_ref = status_label_for_changes.clone();
-            
-            active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, move || {
-                // Get current content
-                let buffer = text_view_ref.buffer();
-                let content = buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.end_iter(),
-                    false
-                ).to_string();
-                
-                // Create a note object and save it
-                let note = Note {
-                    path: note_path.clone(),
-                    title: note_path.file_stem().unwrap_or_default()
-                              .to_string_lossy().to_string(),
-                    content,
-                };
-                
-                match note.save() {
+
+            active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, clone!(@strong active_note_ref, @strong status_label_ref => move || {
+                // The content is already updated in note_to_save
+                match note_to_save.save() {
                     Ok(_) => {
                         // Update status label
-                        let word_count = count_words(&note.content);
+                        let word_count = count_words(&note_to_save.content);
                         status_label_ref.set_text(&format!("{} words (auto-saved)", word_count));
-                        
-                        // Mark as not having unsaved changes
-                        if let Some(active) = active_note_ref.borrow_mut().as_mut() {
-                            active.has_changes = false;
-                            // Set the ID to None *within the timer callback*
-                            active.auto_save_source_id = None;
+
+                        // Mark as not having unsaved changes and clear timer ID
+                        if let Some(active_inner) = active_note_ref.borrow_mut().as_mut() {
+                            active_inner.has_changes = false;
+                            active_inner.auto_save_source_id = None;
+                            active_inner.note.modified_time = note_to_save.modified_time;
                         }
-                        
+
                         // Schedule status update back to normal after delay
                         let status_label_clone = status_label_ref.clone();
-                        let content_clone = note.content.clone();
+                        let content_clone = note_to_save.content.clone();
                         glib::timeout_add_seconds_local(3, move || {
                             let word_count = count_words(&content_clone);
                             status_label_clone.set_text(&format!("{} words", word_count));
@@ -299,10 +298,9 @@ pub fn build_ui(app: &Application) {
                     Err(e) => {
                         eprintln!("Auto-save error: {}", e);
                         status_label_ref.set_text("Auto-save failed");
-                        // Could show a more subtle error indication here
                     }
                 }
-            }));
+            })));
         }
     });
 
@@ -327,33 +325,28 @@ pub fn build_ui(app: &Application) {
                     let _ = source_id.remove();
                 }
 
-                // Get current content
+                // Get current content and update the active note object
                 let buffer = text_view_for_save.buffer();
                 let content = buffer.text(
                     &buffer.start_iter(),
                     &buffer.end_iter(),
                     false
                 ).to_string();
-                
-                // Create a note object and save it
-                let note = Note {
-                    path: active.path.clone(),
-                    title: active.title.clone(),
-                    content,
-                };
-                
-                match note.save() {
+                active.note.content = content; // Update content in the stored note
+
+                // Save the note
+                match active.note.save() { // Save the note stored in active state
                     Ok(_) => {
                         // Mark as not having unsaved changes
                         active.has_changes = false;
                         
                         // Update status label
-                        let word_count = count_words(&note.content);
+                        let word_count = count_words(&active.note.content);
                         status_label_for_save.set_text(&format!("{} words (saved)", word_count));
                         
                         // Schedule status update back to normal after delay
                         let status_label_clone = status_label_for_save.clone();
-                        let content_clone = note.content.clone();
+                        let content_clone = active.note.content.clone();
                         glib::timeout_add_seconds_local(3, move || {
                             let word_count = count_words(&content_clone);
                             status_label_clone.set_text(&format!("{} words", word_count));
@@ -401,6 +394,7 @@ pub fn build_ui(app: &Application) {
                     title: note.title.clone(),
                     has_changes: false,
                     auto_save_source_id: None,
+                    note: note.clone(), // Store the new note
                 });
                 
                 // Update window title
@@ -433,7 +427,7 @@ pub fn build_ui(app: &Application) {
         let active_note_guard = active_note_for_delete.borrow();
         
         if let Some(active) = active_note_guard.as_ref() {
-            let path_clone = active.path.clone();
+            let note_to_delete = active.note.clone(); // Clone the note to delete
             let title_clone = active.title.clone();
             
             // Confirmation dialog
@@ -442,32 +436,25 @@ pub fn build_ui(app: &Application) {
                 "Confirm Deletion",
                 &format!("Delete note \"{}\"?", title_clone),
                 "This action cannot be undone.",
-                clone!(@strong active_note_for_delete, @strong list_box_for_delete, 
-                      @strong text_view_for_delete, @strong window_for_delete, 
-                      @strong status_label_for_delete, @strong path_clone => move || {
-                    
-                    // Create a Note object for the delete operation
-                    let note = Note {
-                        path: path_clone.clone(),
-                        title: path_clone.file_stem().unwrap_or_default()
-                                  .to_string_lossy().to_string(),
-                        content: String::new() // Not needed for deletion
-                    };
-                    
-                    match note.delete() {
+                clone!(@strong active_note_for_delete, @strong list_box_for_delete,
+                      @strong text_view_for_delete, @strong window_for_delete,
+                      @strong status_label_for_delete, @strong note_to_delete => move || {
+
+                    match note_to_delete.delete() { // Delete the cloned note
                         Ok(_) => {
-                            // Clear the active note
-                            *active_note_for_delete.borrow_mut() = None;
-                            
-                            // Clear the editor
-                            text_view_for_delete.buffer().set_text("");
-                            
-                            // Reset window title
-                            window_for_delete.set_title(Some("juswriteit"));
-                            
-                            // Reset status
-                            status_label_for_delete.set_text("Ready");
-                            
+                            // Clear the active note if it's the one we just deleted
+                            let mut active_guard = active_note_for_delete.borrow_mut();
+                            if active_guard.as_ref().map_or(false, |a| a.path == note_to_delete.path) {
+                                *active_guard = None;
+                                // Clear the editor
+                                text_view_for_delete.buffer().set_text("");
+                                // Reset window title
+                                window_for_delete.set_title(Some("juswriteit"));
+                                // Reset status
+                                status_label_for_delete.set_text("Ready");
+                            }
+                            drop(active_guard); // Release borrow before refreshing list
+
                             // Refresh the list box
                             refresh_note_list(&list_box_for_delete);
                         },
@@ -510,34 +497,79 @@ fn refresh_note_list(list_box: &ListBox) {
     while let Some(row) = list_box.row_at_index(0) {
         list_box.remove(&row);
     }
-    
-    // Get all notes
+
+    // Get all notes (already sorted by Note::get_all)
     match Note::get_all() {
         Ok(notes) => {
             let mut found_notes = false;
-            
+
             // Add each note to the list
             for note in notes {
                 found_notes = true;
-                
-                // Create a label with the note title
-                let label = Label::builder()
+
+                // Create labels for title, date, and preview
+                let title_label = Label::builder()
                     .label(&note.title)
                     .xalign(0.0) // Left-align text
-                    .margin_start(5)
-                    .margin_end(5)
-                    .margin_top(5)
-                    .margin_bottom(5)
+                    .css_classes(vec!["note-title"]) // Add CSS class
+                    .halign(gtk::Align::Start)
                     .build();
-                
-                // Create a ListBoxRow and add the label to it
+
+                // Format date as "Mon DD, YYYY"
+                let date_str = note.modified_time
+                    .map(|st| {
+                        let dt: DateTime<Local> = st.into();
+                        dt.format("%b %d, %Y").to_string() // e.g., Apr 21, 2025
+                    })
+                    .unwrap_or_else(|| "-".to_string());
+
+                let date_label = Label::builder()
+                    .label(&date_str)
+                    .xalign(0.0) // Left-align text
+                    .css_classes(vec!["note-date", "dim-label"]) // Add CSS classes
+                    .halign(gtk::Align::Start)
+                    .build();
+
+                // Create preview text
+                let preview_text = if note.content.is_empty() {
+                    "Empty Note...".to_string()
+                } else {
+                    note.content
+                        .split_whitespace()
+                        .take(8) // Take first few words
+                        .collect::<Vec<&str>>()
+                        .join(" ") + "..."
+                };
+
+                let preview_label = Label::builder()
+                    .label(&preview_text)
+                    .xalign(0.0) // Left-align text
+                    .css_classes(vec!["note-preview", "dim-label"]) // Add CSS classes
+                    .halign(gtk::Align::Start)
+                    .build();
+
+                // Create a Vertical Box to hold the labels
+                let row_box = Box::builder()
+                    .orientation(Orientation::Vertical) // Change to Vertical
+                    .spacing(2) // Small spacing between lines
+                    .margin_start(10) // Add horizontal margins
+                    .margin_end(10)
+                    .margin_top(8) // Add vertical margins
+                    .margin_bottom(8)
+                    .build();
+
+                row_box.append(&title_label);
+                row_box.append(&date_label);
+                row_box.append(&preview_label);
+
+                // Create a ListBoxRow and add the Box to it
                 let row = gtk::ListBoxRow::new();
-                row.set_child(Some(&label));
-                
+                row.set_child(Some(&row_box));
+
                 // Add the row to the ListBox
                 list_box.append(&row);
             }
-            
+
             // If no notes were found, show a placeholder message
             if !found_notes {
                 let label = Label::builder()
@@ -576,18 +608,24 @@ fn refresh_note_list(list_box: &ListBox) {
 }
 
 /// Find and select a note by its title
-fn select_note_by_title(list_box: &ListBox, title: &str) {
+fn select_note_by_title(list_box: &ListBox, title_to_find: &str) {
     let mut row_index = 0;
-    
+
     while let Some(row) = list_box.row_at_index(row_index) {
-        if let Some(label) = row.child().and_then(|w| w.downcast::<Label>().ok()) {
-            if label.label() == title {
+        // Find the title label within the row's Box (now vertical)
+        let title_label_opt = row.child()
+            .and_then(|child_box| child_box.downcast::<Box>().ok())
+            .and_then(|vbox| vbox.first_child()) // Get the first child (title label)
+            .and_then(|widget| widget.downcast::<Label>().ok());
+
+        if let Some(title_label) = title_label_opt {
+            if title_label.label() == title_to_find {
                 list_box.select_row(Some(&row));
                 row.grab_focus();
                 return;
             }
         }
-        
+
         row_index += 1;
     }
 }
