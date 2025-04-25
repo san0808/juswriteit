@@ -44,8 +44,8 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
      * Consider migrating from ListBox to ListView with a Gio::ListStore model for better scalability and features if needed.
   - [x] **Delete Note:** Implement note deletion (e.g., via a button or context menu) with a confirmation dialog (Gtk::MessageDialog). Update the list and potentially clear the editor.
   - [ ] **Rename Note:** Implement renaming (e.g., via context menu or double-click). Rename the file and update the list item.
-  - [ ] **Auto-Save:** Implement optional auto-saving triggered by TextBuffer::changed signal after a short delay (using glib::timeout\_add\_local\_once).
-  - [ ] **Status Bar Info:** Add a simple status bar (e.g., using Gtk::Box at the bottom) to show word count.
+  - [x] **Auto-Save:** Implement optional auto-saving triggered by TextBuffer::changed signal after a short delay (using glib::timeout\_add\_local\_once).
+  - [x] **Status Bar Info:** Add a simple status bar (e.g., using Gtk::Box at the bottom) to show word count.
   - [ ] **Basic Styling:** Apply initial GTK CSS to customize colors, fonts, and spacing for a cleaner look.
 
 ### **Phase 3: Polish & Production Readiness**
