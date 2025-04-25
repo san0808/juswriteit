@@ -1,0 +1,30 @@
+# Cargo.toml
+
+[package]
+name = "juswriteit"
+version = "0.1.0" # Start with 0.1.0 for initial development
+edition = "2021"
+description = "A minimalist GTK4 writing application"
+authors = ["Your Name <you@example.com>"] # Replace with your details
+license = "MIT" # Or your preferred license
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Use the gtk4-rs umbrella crate which re-exports gtk4, glib, gdk, etc.
+gtk = { version = "0.8.1", package = "gtk4", features = ["v4_10"] } # Targeting GTK 4.10+ for latest features
+
+# Optional crates we might add later (commented out for now)
+# chrono = { version = "0.4", features = ["serde"] }
+# serde = { version = "1.0", features = ["derive"] }
+# toml = "0.8"
+# log = "0.4"
+# env_logger = "0.11"
+
+[profile.release]
+# Optimize for size in release builds
+opt-level = 'z'     # Optimize for size.
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+panic = 'abort'     # Abort on panic
+strip = true        # Strip symbols from binary*
