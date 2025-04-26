@@ -47,58 +47,63 @@ pub fn build_ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
         .title("juswriteit")
-        .default_width(900)
-        .default_height(600)
+        .default_width(1000)
+        .default_height(700)
         .css_classes(vec!["dark-mode"]) // Start with dark mode by default
         .build();
 
     // Create a HeaderBar
     let header_bar = HeaderBar::builder()
         .show_title_buttons(true)
+        .css_classes(vec!["header-bar"])
         .build();
     
     // Add app title to the headerbar
     let app_title = Label::builder()
-        .label("Notes")
-        .css_classes(vec!["title"])
+        .label("Just Write")
+        .css_classes(vec!["app-title"])
         .build();
     header_bar.set_title_widget(Some(&app_title));
 
-    // Create buttons for the header bar
+    // Create buttons for the header bar with symbolic icons
     let new_note_button = Button::builder()
         .icon_name("document-new-symbolic")
         .tooltip_text("New Note")
+        .css_classes(vec!["header-button"])
         .build();
 
     let rename_note_button = Button::builder()
         .icon_name("document-edit-symbolic")
         .tooltip_text("Rename Note")
         .sensitive(false) // Initially disabled
+        .css_classes(vec!["header-button"])
         .build();
 
     let delete_note_button = Button::builder()
         .icon_name("user-trash-symbolic")
         .tooltip_text("Delete Note")
         .sensitive(false)
+        .css_classes(vec!["header-button"])
         .build();
         
     // Add theme toggle button
     let theme_toggle_button = Button::builder()
-        .icon_name("display-brightness-symbolic")
+        .icon_name("weather-clear-night-symbolic")
         .tooltip_text("Toggle Light/Dark Theme")
-        .css_classes(vec!["theme-toggle-button"])
+        .css_classes(vec!["header-button", "theme-toggle"])
         .build();
     
     // Add theme toggle functionality
     let window_for_theme = window.clone();
-    theme_toggle_button.connect_clicked(move |_| {
-        // Fix: Use proper string comparison for GTK css classes
+    theme_toggle_button.connect_clicked(move |button| {
         if window_for_theme.has_css_class("dark-mode") {
             window_for_theme.remove_css_class("dark-mode");
             window_for_theme.add_css_class("light-mode");
+            button.set_icon_name("weather-clear-symbolic");
         } else {
             window_for_theme.remove_css_class("light-mode");
             window_for_theme.add_css_class("dark-mode");
+            button.set_icon_name("weather-clear-night-symbolic");
         }
     });
 
@@ -114,47 +119,63 @@ pub fn build_ui(app: &Application) {
     // Create a Paned widget (Horizontal orientation for left/right split)
     let paned = Paned::builder()
         .orientation(Orientation::Horizontal)
-        .wide_handle(true)
+        .wide_handle(false) // Slimmer handle
+        .css_classes(vec!["main-pane"])
         .build();
 
-    // Create a ListBox for the notes list
+    // Create a ListBox for the notes list with improved styling
     let list_box = ListBox::builder()
         .selection_mode(gtk::SelectionMode::Single)
-        .css_classes(vec!["notes-list"]) // Add a CSS class for potential styling
+        .css_classes(vec!["notes-list"])
+        .vexpand(true)
+        .build();
+
+    // Add a "Notes" header to the sidebar
+    let sidebar_header = Label::builder()
+        .label("NOTES")
+        .xalign(0.0)
+        .css_classes(vec!["sidebar-header"])
         .build();
 
     // Create a ScrolledWindow to contain the ListBox with scrolling
     let scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
-        .min_content_width(200)
+        .vexpand(true)
+        .css_classes(vec!["sidebar-scroll"])
         .build();
     
     scrolled_window.set_child(Some(&list_box));
 
-    // Create a Box to hold the ScrolledWindow
+    // Create a Box to hold the sidebar components
     let left_pane = Box::builder()
         .orientation(Orientation::Vertical)
+        .css_classes(vec!["sidebar"])
+        .width_request(250) // Fixed sidebar width
         .build();
     
+    // Add the sidebar header and scrolled window to the left pane
+    left_pane.append(&sidebar_header);
     left_pane.append(&scrolled_window);
 
-    // Modify TextView to better match Freewrite style
+    // Improve the editor (TextView) for a more minimalist look
     let text_view = TextView::builder()
         .wrap_mode(gtk::WrapMode::Word)
         .monospace(false)
-        .margin_start(12)
-        .margin_end(12)
+        .css_classes(vec!["editor"])
         .hexpand(true)
         .vexpand(true)
         .build();
     
-    // Add empty buffer (TextView doesn't have placeholder text in GTK4)
+    // Configure buffer with some initial settings
     let buffer = text_view.buffer();
     buffer.set_text("");
     
     // Create a ScrolledWindow to contain the TextView with scrolling
     let editor_scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
+        .hexpand(true)
+        .vexpand(true)
+        .css_classes(vec!["editor-scroll"])
         .build();
     
     editor_scrolled_window.set_child(Some(&text_view));
@@ -163,40 +184,30 @@ pub fn build_ui(app: &Application) {
     let status_label = Label::builder()
         .label("Ready")
         .xalign(0.0)
-        .margin_start(10)
-        .margin_end(10)
-        .margin_top(5)
-        .margin_bottom(5)
-        .hexpand(true)  // Make it expand to push font controls to the right
+        .hexpand(true)
+        .css_classes(vec!["status-text"])
         .build();
     
-    // Create a font size selector
-    let font_size_label = Label::new(Some("16px"));
-    let font_selector = Button::with_label("Lato");
-    
-    // Create a Box for font controls
-    let font_controls = Box::builder()
-        .orientation(Orientation::Horizontal)
-        .spacing(8)
-        .margin_end(10)
+    // Create a word count label
+    let word_count_label = Label::builder()
+        .label("0 words")
+        .xalign(1.0)
+        .css_classes(vec!["word-count"])
         .build();
     
-    font_controls.append(&font_size_label);
-    font_controls.append(&font_selector);
-    
-    // Create a Box for the status bar with css class
+    // Create a Box for the status bar
     let status_box = Box::builder()
         .orientation(Orientation::Horizontal)
         .css_classes(vec!["status-bar"])
         .build();
     
     status_box.append(&status_label);
-    // Fix: In GTK4, use append instead of pack_end
-    status_box.append(&font_controls);
+    status_box.append(&word_count_label);
     
     // Create a Box for the right side (editor and status)
     let right_pane = Box::builder()
         .orientation(Orientation::Vertical)
+        .css_classes(vec!["editor-area"])
         .build();
     
     right_pane.append(&editor_scrolled_window);
@@ -320,12 +331,12 @@ pub fn build_ui(app: &Application) {
         }
     });
 
-    // Connect to the "changed" signal of the text buffer for auto-save
+    // Update the buffer connect_changed handler to update word count and status
     let buffer = text_view.buffer();
     let active_note_for_changes = active_note.clone();
     let text_view_for_changes = text_view.clone();
-    let _window_for_changes = window.clone(); // Add underscore for unused variable
-    let status_label_for_changes = status_label.clone();
+    let status_label_for_changes = status_label.clone(); // Fix: clone status_label
+    let word_count_label_for_changes = word_count_label.clone();
 
     buffer.connect_changed(move |_| {
         let mut active_note_guard = active_note_for_changes.borrow_mut();
@@ -333,6 +344,7 @@ pub fn build_ui(app: &Application) {
         if let Some(active) = active_note_guard.as_mut() {
             // Mark as having unsaved changes
             active.has_changes = true;
+            
             // Update the content in the active note object immediately
             let content = text_view_for_changes.buffer().text(
                 &text_view_for_changes.buffer().start_iter(),
@@ -343,7 +355,8 @@ pub fn build_ui(app: &Application) {
 
             // Update status label to show unsaved state
             let word_count = count_words(&content);
-            status_label_for_changes.set_text(&format!("{} words (unsaved)", word_count));
+            status_label_for_changes.set_text("Editing..."); // Show editing status
+            word_count_label_for_changes.set_text(&format!("{} words", word_count));
             
             // Cancel existing auto-save timer if there is one
             if let Some(source_id) = active.auto_save_source_id.take() {
@@ -354,15 +367,16 @@ pub fn build_ui(app: &Application) {
             let mut note_to_save = active.note.clone();
             // Use glib::clone! to capture variables correctly for the inner closure
             let active_note_ref = active_note_for_changes.clone();
-            let status_label_ref = status_label_for_changes.clone();
+            let status_label_ref = status_label_for_changes.clone(); // Use the correct reference
 
-            active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, clone!(@strong active_note_ref, @strong status_label_ref => move || {
+            active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, clone!(@strong active_note_ref, @strong status_label_ref, @strong word_count_label_for_changes => move || {
                 // The content is already updated in note_to_save
                 match note_to_save.save() {
                     Ok(_) => {
                         // Update status label
                         let word_count = count_words(&note_to_save.content);
-                        status_label_ref.set_text(&format!("{} words (auto-saved)", word_count));
+                        status_label_ref.set_text("Auto-saved"); // Show auto-save status
+                        word_count_label_for_changes.set_text(&format!("{} words", word_count));
 
                         // Mark as not having unsaved changes and clear timer ID
                         if let Some(active_inner) = active_note_ref.borrow_mut().as_mut() {
@@ -373,10 +387,8 @@ pub fn build_ui(app: &Application) {
 
                         // Schedule status update back to normal after delay
                         let status_label_clone = status_label_ref.clone();
-                        let content_clone = note_to_save.content.clone();
                         glib::timeout_add_seconds_local(3, move || {
-                            let word_count = count_words(&content_clone);
-                            status_label_clone.set_text(&format!("{} words", word_count));
+                            status_label_clone.set_text("Ready");
                             glib::ControlFlow::Break
                         });
                     },
@@ -617,8 +629,8 @@ pub fn build_ui(app: &Application) {
     paned.set_start_child(Some(&left_pane));
     paned.set_end_child(Some(&right_pane));
 
-    // Set the initial position of the divider
-    paned.set_position(250);
+    // Set the initial position of the divider (adjusted for improved layout)
+    paned.set_position(260);
 
     // Set the Paned widget as the child of the window
     window.set_child(Some(&paned));
@@ -635,7 +647,7 @@ fn count_words(text: &str) -> usize {
     text.split_whitespace().count()
 }
 
-/// Refresh the note list
+/// Refresh the note list with improved styling
 fn refresh_note_list(list_box: &ListBox) {
     // Remove all existing rows
     while let Some(row) = list_box.row_at_index(0) {
@@ -659,11 +671,11 @@ fn refresh_note_list(list_box: &ListBox) {
                     .halign(gtk::Align::Start)
                     .build();
 
-                // Format date as "Mon DD, YYYY"
+                // Format date as "Mon DD"
                 let date_str = note.modified_time
                     .map(|st| {
                         let dt: DateTime<Local> = st.into();
-                        dt.format("%b %d, %Y").to_string() // e.g., Apr 21, 2025
+                        dt.format("%b %d").to_string() // e.g., Apr 21
                     })
                     .unwrap_or_else(|| "-".to_string());
 
@@ -674,13 +686,13 @@ fn refresh_note_list(list_box: &ListBox) {
                     .halign(gtk::Align::Start)
                     .build();
 
-                // Create preview text
+                // Create shorter preview text
                 let preview_text = if note.content.is_empty() {
-                    "Empty Note...".to_string()
+                    "Empty".to_string()
                 } else {
                     note.content
                         .split_whitespace()
-                        .take(8) // Take first few words
+                        .take(5) // Take fewer words for cleaner look
                         .collect::<Vec<&str>>()
                         .join(" ") + "..."
                 };
@@ -692,14 +704,15 @@ fn refresh_note_list(list_box: &ListBox) {
                     .halign(gtk::Align::Start)
                     .build();
 
-                // Create a Vertical Box to hold the labels
+                // Create a Vertical Box to hold the labels with improved spacing
                 let row_box = Box::builder()
-                    .orientation(Orientation::Vertical) // Change to Vertical
-                    .spacing(2) // Small spacing between lines
-                    .margin_start(10) // Add horizontal margins
-                    .margin_end(10)
-                    .margin_top(8) // Add vertical margins
+                    .orientation(Orientation::Vertical) 
+                    .spacing(2) 
+                    .margin_start(12) 
+                    .margin_end(12)
+                    .margin_top(8) 
                     .margin_bottom(8)
+                    .css_classes(vec!["note-row-box"])
                     .build();
 
                 row_box.append(&title_label);
@@ -707,7 +720,10 @@ fn refresh_note_list(list_box: &ListBox) {
                 row_box.append(&preview_label);
 
                 // Create a ListBoxRow and add the Box to it
-                let row = gtk::ListBoxRow::new();
+                let row = gtk::ListBoxRow::builder()
+                    .css_classes(vec!["note-row"])
+                    .build();
+                    
                 row.set_child(Some(&row_box));
 
                 // Add the row to the ListBox
@@ -719,13 +735,17 @@ fn refresh_note_list(list_box: &ListBox) {
                 let label = Label::builder()
                     .label("No notes yet. Create one!")
                     .xalign(0.0)
-                    .margin_start(5)
-                    .margin_end(5)
-                    .margin_top(5)
-                    .margin_bottom(5)
+                    .margin_start(12)
+                    .margin_end(12)
+                    .margin_top(12)
+                    .margin_bottom(12)
+                    .css_classes(vec!["no-notes-label"])
                     .build();
                 
-                let row = gtk::ListBoxRow::new();
+                let row = gtk::ListBoxRow::builder()
+                    .css_classes(vec!["empty-note-row"])
+                    .build();
+                    
                 row.set_child(Some(&label));
                 row.set_sensitive(false); // Make it non-selectable
                 list_box.append(&row);
@@ -738,13 +758,17 @@ fn refresh_note_list(list_box: &ListBox) {
             let label = Label::builder()
                 .label("Error loading notes")
                 .xalign(0.0)
-                .margin_start(5)
-                .margin_end(5)
-                .margin_top(5)
-                .margin_bottom(5)
+                .margin_start(12)
+                .margin_end(12)
+                .margin_top(12)
+                .margin_bottom(12)
+                .css_classes(vec!["error-label"])
                 .build();
             
-            let row = gtk::ListBoxRow::new();
+            let row = gtk::ListBoxRow::builder()
+                .css_classes(vec!["error-row"])
+                .build();
+                
             row.set_child(Some(&label));
             list_box.append(&row);
         }

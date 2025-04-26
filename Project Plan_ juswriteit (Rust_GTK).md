@@ -52,10 +52,15 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
 
 * **Goal:** Refine the UI/UX, add quality-of-life features, and prepare for distribution.
 * **Tasks:**
-  - [x] **Advanced Styling:** Use GTK CSS extensively to match the minimalist Freewrite aesthetic. Implement Light/Dark theme support (respecting system preference via Gtk::StyleManager).
+  - [x] **Advanced Styling:** Use GTK CSS extensively to match the minimalist Freewrite aesthetic. Implement Light/Dark theme support.
+     * [x] Created modern dark and light themes with careful typography
+     * [x] Implemented centered "typewriter" style editing area
+     * [x] Added theme toggle button with appropriate icons
+     * [x] Improved sidebar with note previews and better spacing
+     * [x] Enhanced header bar with symbolic icons instead of text buttons
   - [ ] **Editor Improvements:**
-     * Basic font selection/size options (maybe via Gtk::FontButton in a settings popover).
-     * Consider basic Markdown syntax highlighting (could be complex, might use an external crate if available or keep it simple).
+     * [ ] Basic font selection/size options (maybe via Gtk::FontButton in a settings popover).
+     * [ ] Consider basic Markdown syntax highlighting (could be complex, might use an external crate if available or keep it simple).
   - [ ] **Search/Filter Notes:** Add a Gtk::SearchEntry to filter the note list based on title/filename.
   - [ ] **Settings:** Implement a simple settings mechanism (e.g., Gtk::PopoverMenu from a HeaderBar button) for options like auto-save toggle, font settings. Store settings locally (e.g., in \~/.config/juswriteit/settings.toml using serde and toml).
   - [ ] **Robust Error Handling:** Add more specific error dialogs and recovery options.
