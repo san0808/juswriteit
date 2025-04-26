@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label,
-          ListBox, ScrolledWindow, Box, TextView, HeaderBar, Button,
-          EventControllerKey, CssProvider};
+          ListBox, ScrolledWindow, Box, TextView, Button,
+          EventControllerKey, CssProvider, Overlay};
 use glib::clone;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -43,54 +43,51 @@ pub fn build_ui(app: &Application) {
     // Load CSS for styling
     load_css();
     
-    // Create the main application window
+    // Create the main application window - undecorated
     let window = ApplicationWindow::builder()
         .application(app)
-        .title("juswriteit")
+        .title("JustWrite")
         .default_width(1000)
         .default_height(700)
-        .css_classes(vec!["dark-mode"]) // Start with dark mode by default
+        .css_classes(vec!["dark-mode", "transition"])
+        .decorated(false) // Make window frameless
         .build();
 
-    // Create a HeaderBar
-    let header_bar = HeaderBar::builder()
-        .show_title_buttons(true)
-        .css_classes(vec!["header-bar"])
+    // Create fullscreen toggle button (will be an overlay)
+    let fullscreen_button = Button::builder()
+        .icon_name("view-fullscreen-symbolic")
+        .tooltip_text("Toggle Fullscreen Mode")
+        .css_classes(vec!["overlay-button", "fullscreen-button"])
+        .halign(gtk::Align::End)
+        .valign(gtk::Align::Start)
+        .margin_top(10)
+        .margin_end(10)
         .build();
     
-    // Add app title to the headerbar
-    let app_title = Label::builder()
-        .label("Just Write")
-        .css_classes(vec!["app-title"])
-        .build();
-    header_bar.set_title_widget(Some(&app_title));
-
-    // Create buttons for the header bar with symbolic icons
-    let new_note_button = Button::builder()
-        .icon_name("document-new-symbolic")
-        .tooltip_text("New Note")
-        .css_classes(vec!["header-button"])
-        .build();
-
-    let rename_note_button = Button::builder()
-        .icon_name("document-edit-symbolic")
-        .tooltip_text("Rename Note")
-        .sensitive(false) // Initially disabled
-        .css_classes(vec!["header-button"])
-        .build();
-
-    let delete_note_button = Button::builder()
-        .icon_name("user-trash-symbolic")
-        .tooltip_text("Delete Note")
-        .sensitive(false)
-        .css_classes(vec!["header-button"])
-        .build();
-        
-    // Add theme toggle button
+    // Fullscreen toggle functionality
+    let window_for_fullscreen = window.clone();
+    fullscreen_button.connect_clicked(move |button| {
+        let is_fullscreen = window_for_fullscreen.is_fullscreen();
+        if is_fullscreen {
+            window_for_fullscreen.unfullscreen();
+            window_for_fullscreen.remove_css_class("fullscreen-mode");
+            button.set_icon_name("view-fullscreen-symbolic");
+        } else {
+            window_for_fullscreen.fullscreen();
+            window_for_fullscreen.add_css_class("fullscreen-mode");
+            button.set_icon_name("view-restore-symbolic");
+        }
+    });
+    
+    // Add theme toggle button (will be an overlay)
     let theme_toggle_button = Button::builder()
         .icon_name("weather-clear-night-symbolic")
         .tooltip_text("Toggle Light/Dark Theme")
-        .css_classes(vec!["header-button", "theme-toggle"])
+        .css_classes(vec!["overlay-button", "theme-toggle"])
+        .halign(gtk::Align::End)
+        .valign(gtk::Align::Start)
+        .margin_top(10)
+        .margin_end(50) // Position next to fullscreen button
         .build();
     
     // Add theme toggle functionality
@@ -106,35 +103,58 @@ pub fn build_ui(app: &Application) {
             button.set_icon_name("weather-clear-night-symbolic");
         }
     });
-
-    // Add buttons to the HeaderBar
-    header_bar.pack_start(&new_note_button);
-    header_bar.pack_start(&rename_note_button);
-    header_bar.pack_start(&delete_note_button);
-    header_bar.pack_end(&theme_toggle_button);
-
-    // Set the HeaderBar as the window's titlebar
-    window.set_titlebar(Some(&header_bar));
-
-    // Create a Paned widget (Horizontal orientation for left/right split)
-    let paned = Paned::builder()
-        .orientation(Orientation::Horizontal)
-        .wide_handle(false) // Slimmer handle
-        .css_classes(vec!["main-pane"])
+    
+    // Create sidebar toggle button (will be an overlay)
+    let sidebar_toggle = Button::builder()
+        .icon_name("view-sidebar-start-symbolic")
+        .tooltip_text("Toggle Sidebar")
+        .css_classes(vec!["overlay-button", "sidebar-toggle"])
+        .halign(gtk::Align::Start)
+        .valign(gtk::Align::Start)
+        .margin_top(10)
+        .margin_start(10)
         .build();
 
-    // Create a ListBox for the notes list with improved styling
+    // Instead of a Box, create an Overlay for the main container
+    let main_overlay = Overlay::new();
+    
+    // Create a Paned widget with horizontal orientation
+    let paned = Paned::builder()
+        .orientation(Orientation::Horizontal)
+        .wide_handle(false)
+        .css_classes(vec!["main-pane"])
+        .hexpand(true)
+        .vexpand(true)
+        .build();
+
+    // --- Sidebar Setup ---
+    let sidebar_header_box = Box::builder() // Renamed variable
+        .orientation(Orientation::Horizontal)
+        .css_classes(vec!["sidebar-header-box"])
+        .build();
+        
+    let notes_label = Label::builder()
+        .label("NOTES")
+        .xalign(0.0)
+        .hexpand(true)
+        .css_classes(vec!["sidebar-header"])
+        .build();
+    
+    // Add "New Note" button in sidebar header
+    let new_note_button = Button::builder()
+        .icon_name("list-add-symbolic")
+        .tooltip_text("New Note")
+        .css_classes(vec!["note-control-button", "new-note-button"])
+        .build();
+        
+    sidebar_header_box.append(&notes_label);
+    sidebar_header_box.append(&new_note_button);
+
+    // ListBox and rest of sidebar setup
     let list_box = ListBox::builder()
         .selection_mode(gtk::SelectionMode::Single)
         .css_classes(vec!["notes-list"])
         .vexpand(true)
-        .build();
-
-    // Add a "Notes" header to the sidebar
-    let sidebar_header = Label::builder()
-        .label("NOTES")
-        .xalign(0.0)
-        .css_classes(vec!["sidebar-header"])
         .build();
 
     // Create a ScrolledWindow to contain the ListBox with scrolling
@@ -150,20 +170,24 @@ pub fn build_ui(app: &Application) {
     let left_pane = Box::builder()
         .orientation(Orientation::Vertical)
         .css_classes(vec!["sidebar"])
-        .width_request(250) // Fixed sidebar width
+        .width_request(260)
         .build();
     
-    // Add the sidebar header and scrolled window to the left pane
-    left_pane.append(&sidebar_header);
+    // Add the sidebar components
+    left_pane.append(&sidebar_header_box); // Use the box containing label and button
     left_pane.append(&scrolled_window);
 
-    // Improve the editor (TextView) for a more minimalist look
+    // --- Editor Area Setup ---
     let text_view = TextView::builder()
         .wrap_mode(gtk::WrapMode::Word)
         .monospace(false)
         .css_classes(vec!["editor"])
         .hexpand(true)
         .vexpand(true)
+        .top_margin(100) // Add top margin for padding
+        .bottom_margin(100)
+        .left_margin(60)
+        .right_margin(60)
         .build();
     
     // Configure buffer with some initial settings
@@ -180,7 +204,7 @@ pub fn build_ui(app: &Application) {
     
     editor_scrolled_window.set_child(Some(&text_view));
 
-    // Create a status label for the bottom of the window
+    // --- Status Bar Setup ---
     let status_label = Label::builder()
         .label("Ready")
         .xalign(0.0)
@@ -188,14 +212,12 @@ pub fn build_ui(app: &Application) {
         .css_classes(vec!["status-text"])
         .build();
     
-    // Create a word count label
     let word_count_label = Label::builder()
         .label("0 words")
         .xalign(1.0)
         .css_classes(vec!["word-count"])
         .build();
     
-    // Create a Box for the status bar
     let status_box = Box::builder()
         .orientation(Orientation::Horizontal)
         .css_classes(vec!["status-bar"])
@@ -204,7 +226,7 @@ pub fn build_ui(app: &Application) {
     status_box.append(&status_label);
     status_box.append(&word_count_label);
     
-    // Create a Box for the right side (editor and status)
+    // --- Right Pane Setup ---
     let right_pane = Box::builder()
         .orientation(Orientation::Vertical)
         .css_classes(vec!["editor-area"])
@@ -213,179 +235,171 @@ pub fn build_ui(app: &Application) {
     right_pane.append(&editor_scrolled_window);
     right_pane.append(&status_box);
 
-    // Create a shared variable to track the active note
-    let active_note: Rc<RefCell<Option<ActiveNote>>> = Rc::new(RefCell::new(None));
+    // --- Main Layout ---
+    // Add paned to the overlay as the main content
+    main_overlay.set_child(Some(&paned));
     
-    // Enable/disable buttons based on selection
-    let delete_button_ref = delete_note_button.clone();
-    let rename_button_ref = rename_note_button.clone();
-    let active_note_for_button = active_note.clone();
+    // Add overlay buttons
+    main_overlay.add_overlay(&sidebar_toggle);
+    main_overlay.add_overlay(&fullscreen_button);
+    main_overlay.add_overlay(&theme_toggle_button);
     
-    // Update UI based on selection state
-    let update_ui_for_selection = move || {
-        let has_selection = active_note_for_button.borrow().is_some();
-        delete_button_ref.set_sensitive(has_selection);
-        rename_button_ref.set_sensitive(has_selection);
-    };
-    
-    // Clone for row selection handler
-    let text_view_for_loading = text_view.clone();
-    let active_note_for_loading = active_note.clone();
-    let update_ui_for_selection_on_load = update_ui_for_selection.clone();
-    let window_for_loading = window.clone();
-    let status_label_for_loading = status_label.clone();
-
-    // Connect row-selected signal to load note content
-    list_box.connect_row_selected({
-        let active_note_for_loading = active_note.clone();
-        let text_view_for_loading = text_view.clone();
-        let window_for_loading = window.clone();
-        let status_label_for_loading = status_label.clone();
-        let update_ui_for_selection_on_load = update_ui_for_selection.clone();
-        move |_listbox, row_opt| {
-            // Cancel any pending auto-save
-            // --- FIX: Only borrow mutably for the minimum time needed ---
-            let mut clear_auto_save = false;
-            {
-                let mut active = active_note_for_loading.borrow_mut();
-                if let Some(active) = active.as_mut() {
-                    if active.auto_save_source_id.is_some() {
-                        clear_auto_save = true;
-                    }
-                }
-            }
-            if clear_auto_save {
-                // Now borrow mutably again just to clear the source_id
-                if let Some(active) = active_note_for_loading.borrow_mut().as_mut() {
-                    if let Some(source_id) = active.auto_save_source_id.take() {
-                        let _ = source_id.remove();
-                    }
-                }
-            }
-            // --- END FIX ---
-
-            if let Some(row) = row_opt {
-                // Get the note title from the custom widget inside the row
-                let title = row.child()
-                    .and_then(|child_box| child_box.downcast::<Box>().ok())
-                    .and_then(|hbox| hbox.first_child()) // Get the first child (title label)
-                    .and_then(|widget| widget.downcast::<Label>().ok())
-                    .map(|label| label.label().to_string());
-
-                if let Some(title) = title {
-                    // Build the full path to the note file
-                    let notes_dir = crate::utils::get_notes_dir();
-                    let file_path = notes_dir.join(format!("{}.md", title));
-
-                    // Load the note content
-                    match Note::load(&file_path) {
-                        Ok(note) => {
-                            // Update the TextView
-                            text_view_for_loading.buffer().set_text(&note.content);
-
-                            // Update the active note
-                            *active_note_for_loading.borrow_mut() = Some(ActiveNote {
-                                path: file_path,
-                                title: title.to_string(),
-                                has_changes: false,
-                                auto_save_source_id: None,
-                                note: note.clone(), // Store the loaded note
-                            });
-
-                            // Update window title
-                            window_for_loading.set_title(Some(&format!("{} - juswriteit", title)));
-                            
-                            // Update status label
-                            let word_count = count_words(&note.content);
-                            status_label_for_loading.set_text(&format!("{} words", word_count));
-                        },
-                        Err(e) => {
-                            eprintln!("Error loading note content: {}", e);
-                            text_view_for_loading.buffer().set_text("");
-                            window_for_loading.set_title(Some("juswriteit"));
-                            status_label_for_loading.set_text("Error loading note");
-                            *active_note_for_loading.borrow_mut() = None;
-                        }
-                    }
-                } else {
-                     // Handle case where title couldn't be extracted (e.g., placeholder row)
-                    *active_note_for_loading.borrow_mut() = None;
-                    text_view_for_loading.buffer().set_text("");
-                    window_for_loading.set_title(Some("juswriteit"));
-                    status_label_for_loading.set_text("Ready");
-                }
-            } else {
-                // No row selected, clear the TextView
-                text_view_for_loading.buffer().set_text("");
-                
-                // Clear the active note
-                *active_note_for_loading.borrow_mut() = None;
-                
-                // Reset window title and status
-                window_for_loading.set_title(Some("juswriteit"));
-                status_label_for_loading.set_text("Ready");
-            }
-            
-            // Update UI state based on selection
-            update_ui_for_selection_on_load();
+    // Sidebar toggle functionality
+    let window_for_sidebar = window.clone();
+    let left_pane_for_sidebar = left_pane.clone();
+    let paned_for_sidebar = paned.clone(); // Clone paned
+    sidebar_toggle.connect_clicked(move |_| {
+        // Toggle sidebar visibility using CSS class on the window
+        if window_for_sidebar.has_css_class("sidebar-hidden") {
+            window_for_sidebar.remove_css_class("sidebar-hidden");
+            left_pane_for_sidebar.set_visible(true); // Ensure pane is visible
+            paned_for_sidebar.set_position(260); // Restore position using the clone
+        } else {
+            window_for_sidebar.add_css_class("sidebar-hidden");
+            // Optionally hide the pane completely or just set position to 0
+            paned_for_sidebar.set_position(0); // Use the clone
+            // left_pane_for_sidebar.set_visible(false); // Alternative: hide completely
         }
     });
+    
+    // Connect fullscreen state to show/hide standard window elements if needed
+    // (Currently handled by CSS and overlay visibility)
+    window.connect_fullscreened_notify(move |_window| {
+        // Potentially adjust styles or visibility further if needed
+    });
+    
+    // --- Active Note Logic ---
+    let active_note: Rc<RefCell<Option<ActiveNote>>> = Rc::new(RefCell::new(None));
+    
+    // --- Row Selection Logic ---
+    // Clone variables needed for the closure
+    let active_note_for_select = active_note.clone();
+    let text_view_for_select = text_view.clone();
+    let window_for_select = window.clone();
+    let status_label_for_select = status_label.clone();
+    let word_count_label_for_select = word_count_label.clone();
 
-    // Update the buffer connect_changed handler to update word count and status
+    list_box.connect_row_selected(move |_listbox, row_opt| {
+        // Cancel any pending auto-save
+        let mut clear_auto_save = false;
+        { // Minimal borrow scope
+            let mut active = active_note_for_select.borrow_mut();
+            if let Some(active) = active.as_mut() {
+                if active.auto_save_source_id.is_some() {
+                    clear_auto_save = true;
+                }
+            }
+        }
+        if clear_auto_save {
+            if let Some(active) = active_note_for_select.borrow_mut().as_mut() {
+                if let Some(source_id) = active.auto_save_source_id.take() {
+                    let _ = source_id.remove();
+                }
+            }
+        }
+
+        if let Some(row) = row_opt {
+            // Get the note title from the row's child structure
+            let title = row.child()
+                .and_then(|outer_box| outer_box.downcast::<Box>().ok())
+                .and_then(|hbox| hbox.first_child()) // Get content box
+                .and_then(|content_box| content_box.downcast::<Box>().ok())
+                .and_then(|vbox| vbox.first_child()) // Get title label
+                .and_then(|widget| widget.downcast::<Label>().ok())
+                .map(|label| label.label().to_string());
+
+            if let Some(title) = title {
+                let notes_dir = crate::utils::get_notes_dir();
+                let file_path = notes_dir.join(format!("{}.md", title));
+
+                match Note::load(&file_path) {
+                    Ok(note) => {
+                        text_view_for_select.buffer().set_text(&note.content);
+                        *active_note_for_select.borrow_mut() = Some(ActiveNote {
+                            path: file_path,
+                            title: title.to_string(),
+                            has_changes: false,
+                            auto_save_source_id: None,
+                            note: note.clone(),
+                        });
+                        window_for_select.set_title(Some(&format!("{} - JustWrite", title)));
+                        let word_count = count_words(&note.content);
+                        let count_text = format!("{} words", word_count);
+                        status_label_for_select.set_text("Ready"); // Reset status
+                        word_count_label_for_select.set_text(&count_text);
+                    },
+                    Err(e) => {
+                        eprintln!("Error loading note content: {}", e);
+                        text_view_for_select.buffer().set_text("");
+                        window_for_select.set_title(Some("JustWrite"));
+                        status_label_for_select.set_text("Error loading note");
+                        *active_note_for_select.borrow_mut() = None;
+                    }
+                }
+            } else {
+                 // Handle case where title couldn't be extracted (e.g., placeholder row)
+                *active_note_for_select.borrow_mut() = None;
+                text_view_for_select.buffer().set_text("");
+                window_for_select.set_title(Some("JustWrite"));
+                status_label_for_select.set_text("Ready");
+                word_count_label_for_select.set_text("0 words");
+            }
+        } else {
+            // No row selected
+            text_view_for_select.buffer().set_text("");
+            *active_note_for_select.borrow_mut() = None;
+            window_for_select.set_title(Some("JustWrite"));
+            status_label_for_select.set_text("Ready");
+            word_count_label_for_select.set_text("0 words");
+        }
+        // No need to call update_ui_for_selection here, as header buttons are removed
+    });
+
+    // --- Text Buffer Change Logic ---
     let buffer = text_view.buffer();
     let active_note_for_changes = active_note.clone();
     let text_view_for_changes = text_view.clone();
-    let status_label_for_changes = status_label.clone(); // Fix: clone status_label
+    let status_label_for_changes = status_label.clone();
     let word_count_label_for_changes = word_count_label.clone();
 
     buffer.connect_changed(move |_| {
         let mut active_note_guard = active_note_for_changes.borrow_mut();
-
         if let Some(active) = active_note_guard.as_mut() {
-            // Mark as having unsaved changes
             active.has_changes = true;
-            
-            // Update the content in the active note object immediately
             let content = text_view_for_changes.buffer().text(
                 &text_view_for_changes.buffer().start_iter(),
                 &text_view_for_changes.buffer().end_iter(),
                 false
             ).to_string();
-            active.note.content = content.clone(); // Update content in the stored note
+            active.note.content = content.clone();
 
-            // Update status label to show unsaved state
             let word_count = count_words(&content);
-            status_label_for_changes.set_text("Editing..."); // Show editing status
-            word_count_label_for_changes.set_text(&format!("{} words", word_count));
-            
-            // Cancel existing auto-save timer if there is one
+            let count_text = format!("{} words", word_count);
+            word_count_label_for_changes.set_text(&count_text);
+            status_label_for_changes.set_text("Editing...");
+
             if let Some(source_id) = active.auto_save_source_id.take() {
                 let _ = source_id.remove();
             }
 
-            // Schedule a new auto-save
             let mut note_to_save = active.note.clone();
-            // Use glib::clone! to capture variables correctly for the inner closure
             let active_note_ref = active_note_for_changes.clone();
-            let status_label_ref = status_label_for_changes.clone(); // Use the correct reference
+            let status_label_ref = status_label_for_changes.clone();
+            let word_count_ref = word_count_label_for_changes.clone(); // Clone for auto-save closure
 
-            active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, clone!(@strong active_note_ref, @strong status_label_ref, @strong word_count_label_for_changes => move || {
-                // The content is already updated in note_to_save
+            active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, clone!(@strong active_note_ref, @strong status_label_ref, @strong word_count_ref => move || {
                 match note_to_save.save() {
                     Ok(_) => {
-                        // Update status label
                         let word_count = count_words(&note_to_save.content);
-                        status_label_ref.set_text("Auto-saved"); // Show auto-save status
-                        word_count_label_for_changes.set_text(&format!("{} words", word_count));
+                        status_label_ref.set_text("Auto-saved");
+                        word_count_ref.set_text(&format!("{} words", word_count)); // Update word count on save
 
-                        // Mark as not having unsaved changes and clear timer ID
                         if let Some(active_inner) = active_note_ref.borrow_mut().as_mut() {
                             active_inner.has_changes = false;
                             active_inner.auto_save_source_id = None;
                             active_inner.note.modified_time = note_to_save.modified_time;
                         }
 
-                        // Schedule status update back to normal after delay
                         let status_label_clone = status_label_ref.clone();
                         glib::timeout_add_seconds_local(3, move || {
                             status_label_clone.set_text("Ready");
@@ -401,52 +415,35 @@ pub fn build_ui(app: &Application) {
         }
     });
 
-    // Add keyboard shortcut handling (Ctrl+S for manual save)
+    // --- Keyboard Shortcut (Ctrl+S) ---
     let key_controller = EventControllerKey::new();
-    
-    // Clone what we need for the closure
     let text_view_for_save = text_view.clone();
     let active_note_for_save = active_note.clone();
     let window_for_save = window.clone();
     let status_label_for_save = status_label.clone();
-    
-    key_controller.connect_key_pressed(clone!(@strong window_for_save, @strong text_view_for_save, @strong active_note_for_save, @strong status_label_for_save => move |_, key, _keycode, state| {
-        // Check for Ctrl+S
+    let word_count_label_for_save = word_count_label.clone(); // Clone for save
+
+    key_controller.connect_key_pressed(clone!(@strong window_for_save, @strong text_view_for_save, @strong active_note_for_save, @strong status_label_for_save, @strong word_count_label_for_save => move |_, key, _keycode, state| {
         if key == gtk::gdk::Key::s && state.contains(gtk::gdk::ModifierType::CONTROL_MASK) {
             let mut active_note_guard = active_note_for_save.borrow_mut();
-
             if let Some(active) = active_note_guard.as_mut() {
-                // Cancel any pending auto-save
                 if let Some(source_id) = active.auto_save_source_id.take() {
-                    // Ignore the result of remove()
                     let _ = source_id.remove();
                 }
-
-                // Get current content and update the active note object
                 let buffer = text_view_for_save.buffer();
-                let content = buffer.text(
-                    &buffer.start_iter(),
-                    &buffer.end_iter(),
-                    false
-                ).to_string();
-                active.note.content = content; // Update content in the stored note
+                let content = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+                active.note.content = content.clone(); // Use cloned content
 
-                // Save the note
-                match active.note.save() { // Save the note stored in active state
+                match active.note.save() {
                     Ok(_) => {
-                        // Mark as not having unsaved changes
                         active.has_changes = false;
-                        
-                        // Update status label
                         let word_count = count_words(&active.note.content);
-                        status_label_for_save.set_text(&format!("{} words (saved)", word_count));
-                        
-                        // Schedule status update back to normal after delay
+                        status_label_for_save.set_text("Saved"); // Simpler status
+                        word_count_label_for_save.set_text(&format!("{} words", word_count)); // Update word count
+
                         let status_label_clone = status_label_for_save.clone();
-                        let content_clone = active.note.content.clone();
                         glib::timeout_add_seconds_local(3, move || {
-                            let word_count = count_words(&content_clone);
-                            status_label_clone.set_text(&format!("{} words", word_count));
+                            status_label_clone.set_text("Ready");
                             glib::ControlFlow::Break
                         });
                     },
@@ -456,184 +453,69 @@ pub fn build_ui(app: &Application) {
                     }
                 }
             }
-            
-            // Return true to indicate we handled the key press
             return glib::Propagation::Stop;
         }
-        
-        // Let other handlers process the key press
         glib::Propagation::Proceed
     }));
-    
-    // Add the controller to the window
     window.add_controller(key_controller);
     
-    // Connect the "New Note" button
+    // --- New Note Button Logic ---
     let list_box_for_new = list_box.clone();
     let active_note_for_new = active_note.clone();
     let text_view_for_new = text_view.clone();
     let window_for_new = window.clone();
     let status_label_for_new = status_label.clone();
-    
+    let word_count_label_for_new = word_count_label.clone(); // Clone for new note
+
     new_note_button.connect_clicked(move |_| {
-        // Generate a unique title for the new note
-        let title = Note::generate_unique_title();
-        
-        // Create a new note
-        match Note::new(&title) {
-            Ok(note) => {
+        // Find an empty note or create a new one
+        match find_or_create_new_note() {
+            Ok(mut note) => { // Make note mutable
+                // Check if we reused an old empty note and update its title if needed
+                match note.update_title_if_empty_and_old() {
+                    Ok(true) => println!("Updated title for old empty note to: {}", note.title),
+                    Ok(false) => (), // Title didn't need updating
+                    Err(e) => {
+                        eprintln!("Error updating title for old empty note: {}", e);
+                        // Proceed anyway, but log the error
+                    }
+                }
+
                 // Clear the editor
-                text_view_for_new.buffer().set_text("");
+                text_view_for_new.buffer().set_text(&note.content); // Use content from potentially reused note
                 
                 // Update the active note
                 *active_note_for_new.borrow_mut() = Some(ActiveNote {
                     path: note.path.clone(),
                     title: note.title.clone(),
-                    has_changes: false,
+                    has_changes: false, // Start fresh
                     auto_save_source_id: None,
-                    note: note.clone(), // Store the new note
+                    note: note.clone(),
                 });
                 
-                // Update window title
-                window_for_new.set_title(Some(&format!("{} - juswriteit", title)));
+                window_for_new.set_title(Some(&format!("{} - JustWrite", note.title)));
+                let word_count = count_words(&note.content);
+                status_label_for_new.set_text("Ready");
+                word_count_label_for_new.set_text(&format!("{} words", word_count));
                 
-                // Update status
-                status_label_for_new.set_text("0 words");
-                
-                // Refresh the list box
                 refresh_note_list(&list_box_for_new);
-                
-                // Find and select the newly created note
-                select_note_by_title(&list_box_for_new, &title);
+                select_note_by_title(&list_box_for_new, &note.title);
             },
             Err(e) => {
-                eprintln!("Error creating new note: {}", e);
+                eprintln!("Error finding or creating new note: {}", e);
                 show_error_dialog(&window_for_new, "Create Error", &format!("Failed to create new note: {}", e));
             }
         }
     });
 
-    // Connect the "Rename" button
-    let list_box_for_rename = list_box.clone();
-    let active_note_for_rename = active_note.clone();
-    let window_for_rename = window.clone();
+    // Remove rename_button_ref and delete_button_ref connections as they are moved to rows
 
-    // Use clone! for the outer closure
-    rename_note_button.connect_clicked(clone!(@strong window_for_rename, @strong active_note_for_rename, @strong list_box_for_rename => move |_| {
-        // Borrow immutably first to get the title
-        let current_title = active_note_for_rename.borrow().as_ref().map(|a| a.title.clone());
+    // Add panes to the Paned widget
+    paned.set_start_child(Some(&left_pane)); // Use the original paned here
+    paned.set_end_child(Some(&right_pane)); // Use the original paned here
 
-        // Only proceed if there is an active note and we got a title
-        if let Some(current_title) = current_title {
-            // Show rename dialog, passing owned String
-            // Use clone! again for the inner closure (on_confirm)
-            // No mutable borrow is held here anymore
-            show_rename_dialog(
-                &window_for_rename,
-                current_title, // Pass owned String
-                clone!(@strong active_note_for_rename, @strong window_for_rename, @strong list_box_for_rename => move |new_title| {
-                    // This closure is called when the user confirms the rename
-                    let rename_result = { // Create a scope for the mutable borrow
-                        let mut active_guard = active_note_for_rename.borrow_mut();
-                        if let Some(active_inner) = active_guard.as_mut() {
-                            match active_inner.note.rename(&new_title) {
-                                Ok(_) => {
-                                    // Update active note title within the borrow
-                                    active_inner.title = new_title.clone();
-                                    // Update window title
-                                    window_for_rename.set_title(Some(&format!("{} - juswriteit", new_title)));
-                                    Ok(()) // Indicate success
-                                },
-                                Err(e) => {
-                                    eprintln!("Error renaming note: {}", e);
-                                    Err(e) // Propagate error
-                                }
-                            }
-                        } else {
-                            Err("No active note found during rename confirmation.".to_string())
-                        }
-                        // active_guard is dropped here, releasing the mutable borrow
-                    };
-
-                    // Handle result outside the borrow scope
-                    match rename_result {
-                        Ok(_) => {
-                            // Refresh list and reselect *after* borrow is released
-                            refresh_note_list(&list_box_for_rename);
-                            select_note_by_title(&list_box_for_rename, &new_title);
-                        },
-                        Err(e) => {
-                            // Pass cloned window to error dialog
-                            show_error_dialog(&window_for_rename, "Rename Error", &e);
-                        }
-                    }
-                })
-            );
-        }
-    }));
-
-    // Connect the "Delete" button
-    let list_box_for_delete = list_box.clone();
-    let active_note_for_delete = active_note.clone();
-    let window_for_delete = window.clone();
-    let text_view_for_delete = text_view.clone();
-    let status_label_for_delete = status_label.clone();
-    
-    delete_note_button.connect_clicked(move |_| {
-        let active_note_guard = active_note_for_delete.borrow();
-        
-        if let Some(active) = active_note_guard.as_ref() {
-            let note_to_delete = active.note.clone(); // Clone the note to delete
-            let title_clone = active.title.clone();
-            
-            // Confirmation dialog
-            show_confirmation_dialog(
-                &window_for_delete,
-                "Confirm Deletion",
-                &format!("Delete note \"{}\"?", title_clone),
-                "This action cannot be undone.",
-                clone!(@strong active_note_for_delete, @strong list_box_for_delete,
-                      @strong text_view_for_delete, @strong window_for_delete,
-                      @strong status_label_for_delete, @strong note_to_delete => move || {
-
-                    match note_to_delete.delete() { // Delete the cloned note
-                        Ok(_) => {
-                            // Clear the active note if it's the one we just deleted
-                            let mut active_guard = active_note_for_delete.borrow_mut();
-                            if active_guard.as_ref().map_or(false, |a| a.path == note_to_delete.path) {
-                                *active_guard = None;
-                                // Clear the editor
-                                text_view_for_delete.buffer().set_text("");
-                                // Reset window title
-                                window_for_delete.set_title(Some("juswriteit"));
-                                // Reset status
-                                status_label_for_delete.set_text("Ready");
-                            }
-                            drop(active_guard); // Release borrow before refreshing list
-
-                            // Refresh the list box
-                            refresh_note_list(&list_box_for_delete);
-                        },
-                        Err(e) => {
-                            eprintln!("Error deleting note: {}", e);
-                            show_error_dialog(&window_for_delete, "Delete Error", 
-                                             &format!("Failed to delete note: {}", e));
-                        }
-                    }
-                })
-            );
-        }
-    });
-
-    // Add the panes to the Paned widget
-    paned.set_start_child(Some(&left_pane));
-    paned.set_end_child(Some(&right_pane));
-
-    // Set the initial position of the divider (adjusted for improved layout)
-    paned.set_position(260);
-
-    // Set the Paned widget as the child of the window
-    window.set_child(Some(&paned));
+    // Set the Overlay as the child of the window
+    window.set_child(Some(&main_overlay));
 
     // Populate the notes list
     refresh_note_list(&list_box);
@@ -647,7 +529,28 @@ fn count_words(text: &str) -> usize {
     text.split_whitespace().count()
 }
 
-/// Refresh the note list with improved styling
+/// Find an empty note or create a new one, updating title if necessary
+fn find_or_create_new_note() -> Result<Note, String> {
+    match Note::get_all() {
+        Ok(notes) => {
+            // Look for empty notes (or very minimal content)
+            for note in notes { // Remove 'mut' keyword
+                if note.is_empty() {
+                    // Found an empty note, return it (title update handled in caller)
+                    return Ok(note);
+                }
+            }
+            // No empty note found, create a new one
+            Note::new(&Note::generate_unique_title())
+        },
+        Err(_) => {
+            // If we can't read notes, just try to create a new one
+            Note::new(&Note::generate_unique_title())
+        }
+    }
+}
+
+/// Refresh the note list with edit and delete buttons on hover
 fn refresh_note_list(list_box: &ListBox) {
     // Remove all existing rows
     while let Some(row) = list_box.row_at_index(0) {
@@ -663,11 +566,29 @@ fn refresh_note_list(list_box: &ListBox) {
             for note in notes {
                 found_notes = true;
 
-                // Create labels for title, date, and preview
+                // Create a horizontal box for the row to hold content and controls
+                let row_outer_box = Box::builder()
+                    .orientation(Orientation::Horizontal)
+                    .hexpand(true)
+                    .css_classes(vec!["note-row-outer"]) // Add class for hover detection
+                    .build();
+
+                // Create labels for title, date, and preview in a vertical box
+                let row_content_box = Box::builder()
+                    .orientation(Orientation::Vertical)
+                    .spacing(2)
+                    .margin_start(12)
+                    .margin_end(12)
+                    .margin_top(8)
+                    .margin_bottom(8)
+                    .hexpand(true)
+                    .css_classes(vec!["note-content-box"])
+                    .build();
+
                 let title_label = Label::builder()
                     .label(&note.title)
-                    .xalign(0.0) // Left-align text
-                    .css_classes(vec!["note-title"]) // Add CSS class
+                    .xalign(0.0)
+                    .css_classes(vec!["note-title"])
                     .halign(gtk::Align::Start)
                     .build();
 
@@ -675,56 +596,151 @@ fn refresh_note_list(list_box: &ListBox) {
                 let date_str = note.modified_time
                     .map(|st| {
                         let dt: DateTime<Local> = st.into();
-                        dt.format("%b %d").to_string() // e.g., Apr 21
+                        dt.format("%b %d").to_string()
                     })
                     .unwrap_or_else(|| "-".to_string());
 
                 let date_label = Label::builder()
                     .label(&date_str)
-                    .xalign(0.0) // Left-align text
-                    .css_classes(vec!["note-date", "dim-label"]) // Add CSS classes
+                    .xalign(0.0)
+                    .css_classes(vec!["note-date", "dim-label"])
                     .halign(gtk::Align::Start)
                     .build();
 
-                // Create shorter preview text
-                let preview_text = if note.content.is_empty() {
+                // Shorter preview text
+                let preview_text = if note.is_empty() { // Use is_empty method
                     "Empty".to_string()
                 } else {
                     note.content
                         .split_whitespace()
-                        .take(5) // Take fewer words for cleaner look
+                        .take(5)
                         .collect::<Vec<&str>>()
                         .join(" ") + "..."
                 };
 
                 let preview_label = Label::builder()
                     .label(&preview_text)
-                    .xalign(0.0) // Left-align text
-                    .css_classes(vec!["note-preview", "dim-label"]) // Add CSS classes
+                    .xalign(0.0)
+                    .css_classes(vec!["note-preview", "dim-label"])
                     .halign(gtk::Align::Start)
                     .build();
 
-                // Create a Vertical Box to hold the labels with improved spacing
-                let row_box = Box::builder()
-                    .orientation(Orientation::Vertical) 
-                    .spacing(2) 
-                    .margin_start(12) 
-                    .margin_end(12)
-                    .margin_top(8) 
-                    .margin_bottom(8)
-                    .css_classes(vec!["note-row-box"])
+                // Add labels to the content box
+                row_content_box.append(&title_label);
+                row_content_box.append(&date_label);
+                row_content_box.append(&preview_label);
+
+                // Create control buttons box (edit, delete) - initially hidden via CSS
+                let control_box = Box::builder()
+                    .orientation(Orientation::Horizontal)
+                    .valign(gtk::Align::Center)
+                    .halign(gtk::Align::End)
+                    .spacing(4)
+                    .margin_end(8)
+                    .css_classes(vec!["note-controls"]) // CSS handles visibility
                     .build();
 
-                row_box.append(&title_label);
-                row_box.append(&date_label);
-                row_box.append(&preview_label);
+                // Edit button
+                let edit_button = Button::builder()
+                    .icon_name("document-edit-symbolic")
+                    .tooltip_text("Rename Note")
+                    .css_classes(vec!["note-control-button"])
+                    .build();
 
-                // Create a ListBoxRow and add the Box to it
+                // Delete button
+                let delete_button = Button::builder()
+                    .icon_name("user-trash-symbolic")
+                    .tooltip_text("Delete Note")
+                    .css_classes(vec!["note-control-button"])
+                    .build();
+
+                // Add buttons to the control box
+                control_box.append(&edit_button);
+                control_box.append(&delete_button);
+
+                // Add content and controls to the row
+                row_outer_box.append(&row_content_box);
+                row_outer_box.append(&control_box);
+
+                // Create the row and add the content
                 let row = gtk::ListBoxRow::builder()
                     .css_classes(vec!["note-row"])
                     .build();
-                    
-                row.set_child(Some(&row_box));
+                
+                row.set_child(Some(&row_outer_box));
+
+                // Store note title in row data for button handlers
+                let note_title = note.title.clone();
+                
+                // Connect the edit button to show rename dialog
+                let list_box_for_edit = list_box.clone();
+                let row_for_edit = row.clone();
+                let note_title_for_edit = note_title.clone(); // Clone for edit button
+                
+                edit_button.connect_clicked(move |_| {
+                    if let Some(window) = row_for_edit.root().and_then(|r| r.downcast::<gtk::Window>().ok()) {
+                        // Ensure window is ApplicationWindow
+                        if let Ok(app_window) = window.downcast::<ApplicationWindow>() {
+                            show_rename_dialog(
+                                &app_window, // Pass correct type
+                                note_title_for_edit.clone(), // Use the cloned title
+                                clone!(@strong list_box_for_edit, @strong note_title_for_edit => move |new_title| {
+                                    // Get the current note using cloned title
+                                    if let Ok(mut note) = Note::load(&crate::utils::get_notes_dir()
+                                        .join(format!("{}.md", note_title_for_edit))) {
+                                        // Rename it
+                                        if let Ok(()) = note.rename(&new_title) {
+                                            // Refresh list and select the renamed note
+                                            refresh_note_list(&list_box_for_edit);
+                                            select_note_by_title(&list_box_for_edit, &new_title);
+                                        } else {
+                                            // Handle rename error (e.g., show dialog)
+                                            if let Some(root_window) = list_box_for_edit.root().and_then(|r| r.downcast::<ApplicationWindow>().ok()) {
+                                                show_error_dialog(&root_window, "Rename Failed", "Could not rename the note.");
+                                            }
+                                        }
+                                    }
+                                })
+                            );
+                        }
+                    }
+                });
+                
+                // Connect the delete button to show confirmation dialog
+                let list_box_for_delete = list_box.clone();
+                let row_for_delete = row.clone();
+                let note_title_for_delete = note_title.clone(); // Clone for delete button
+                
+                delete_button.connect_clicked(move |_| {
+                    if let Some(window) = row_for_delete.root().and_then(|r| r.downcast::<gtk::Window>().ok()) {
+                        // Ensure window is ApplicationWindow
+                        if let Ok(app_window) = window.downcast::<ApplicationWindow>() {
+                            show_confirmation_dialog(
+                                &app_window, // Pass correct type
+                                "Confirm Deletion",
+                                &format!("Delete note \"{}\"?", note_title_for_delete),
+                                "This action cannot be undone.",
+                                clone!(@strong list_box_for_delete, @strong note_title_for_delete => move || {
+                                    // Get the current note using cloned title
+                                    if let Ok(note) = Note::load(&crate::utils::get_notes_dir()
+                                        .join(format!("{}.md", note_title_for_delete))) {
+                                        // Delete it
+                                        if let Ok(()) = note.delete() {
+                                            // Refresh the list
+                                            refresh_note_list(&list_box_for_delete);
+                                            // Optionally clear editor if deleted note was active
+                                        } else {
+                                            // Handle delete error
+                                            if let Some(root_window) = list_box_for_delete.root().and_then(|r| r.downcast::<ApplicationWindow>().ok()) {
+                                                show_error_dialog(&root_window, "Delete Failed", "Could not delete the note.");
+                                            }
+                                        }
+                                    }
+                                })
+                            );
+                        }
+                    }
+                });
 
                 // Add the row to the ListBox
                 list_box.append(&row);
@@ -753,7 +769,6 @@ fn refresh_note_list(list_box: &ListBox) {
         },
         Err(e) => {
             eprintln!("Error reading notes: {}", e);
-            
             // Add an error message to the list
             let label = Label::builder()
                 .label("Error loading notes")
@@ -772,29 +787,6 @@ fn refresh_note_list(list_box: &ListBox) {
             row.set_child(Some(&label));
             list_box.append(&row);
         }
-    }
-}
-
-/// Find and select a note by its title
-fn select_note_by_title(list_box: &ListBox, title_to_find: &str) {
-    let mut row_index = 0;
-
-    while let Some(row) = list_box.row_at_index(row_index) {
-        // Find the title label within the row's Box (now vertical)
-        let title_label_opt = row.child()
-            .and_then(|child_box| child_box.downcast::<Box>().ok())
-            .and_then(|vbox| vbox.first_child()) // Get the first child (title label)
-            .and_then(|widget| widget.downcast::<Label>().ok());
-
-        if let Some(title_label) = title_label_opt {
-            if title_label.label() == title_to_find {
-                list_box.select_row(Some(&row));
-                row.grab_focus();
-                return;
-            }
-        }
-
-        row_index += 1;
     }
 }
 
@@ -921,4 +913,27 @@ where
     });
 
     dialog.present();
+}
+
+/// Find and select a note by its title
+fn select_note_by_title(list_box: &ListBox, title_to_find: &str) {
+    let mut row_index = 0;
+
+    while let Some(row) = list_box.row_at_index(row_index) {
+        // Find the title label within the row's Box (now vertical)
+        let title_label_opt = row.child()
+            .and_then(|child_box| child_box.downcast::<Box>().ok())
+            .and_then(|vbox| vbox.first_child()) // Get the first child (title label)
+            .and_then(|widget| widget.downcast::<Label>().ok());
+
+        if let Some(title_label) = title_label_opt {
+            if title_label.label() == title_to_find {
+                list_box.select_row(Some(&row));
+                row.grab_focus();
+                return;
+            }
+        }
+
+        row_index += 1;
+    }
 }

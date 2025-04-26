@@ -167,4 +167,35 @@ impl Note {
 
         title
     }
+
+    /// Check if a note is empty or nearly empty
+    /// Considers notes with just whitespace or very few characters as empty.
+    pub fn is_empty(&self) -> bool {
+        self.content.trim().is_empty() || self.content.len() < 5
+    }
+    
+    /// Update note title with today's date if it's empty and old
+    /// Returns Ok(true) if the title was updated, Ok(false) otherwise.
+    pub fn update_title_if_empty_and_old(&mut self) -> Result<bool, String> {
+        // Only update empty notes
+        if !self.is_empty() {
+            return Ok(false);
+        }
+        
+        // Check if the note's title contains a date that isn't today
+        if let Some(modified_time) = self.modified_time {
+            let modified_dt: DateTime<Local> = modified_time.into();
+            let now = Local::now();
+            
+            // Check if it's from a previous day
+            if modified_dt.date_naive() < now.date_naive() {
+                // Generate a new title with today's date
+                let new_title = Self::generate_unique_title();
+                self.rename(&new_title)?; // Use existing rename logic
+                return Ok(true); // Title was updated
+            }
+        }
+        
+        Ok(false) // Title was not updated
+    }
 }

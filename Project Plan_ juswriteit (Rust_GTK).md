@@ -1,20 +1,20 @@
 # **Project Plan: juswriteit**
 
-Version: 1.0 (Initial Plan)  
-Date: 2025-04-25  
+Version: 1.0 (Initial Plan)
+Date: 2025-04-25
 Goal: A minimalist, native Linux desktop app for focused writing, storing notes locally, built with Rust and GTK, inspired by Freewrite's UI.
 
 ## **1\. Core Decisions**
 
-* **Language:** Rust (for performance, memory safety, native binaries)  
-* **GUI Toolkit:** GTK4 via gtk4-rs and glib-rs bindings (for native Linux look & feel, modern features)  
-* **Data Storage:** Plain Markdown files (.md) stored in a dedicated directory (\~/.local/share/juswriteit/notes/ by default). Filenames act as titles.  
-* **Architecture:** Model-View-Controller (MVC) inspired pattern.  
-  * **Model:** Rust modules/structs handling file system operations (listing, reading, writing, deleting, renaming notes).  
-  * **View:** GTK4 widgets defined and laid out in Rust code (ApplicationWindow, Paned, ListView/ListBox, TextView, HeaderBar, etc.).  
-  * **Controller:** GTK signal handlers connecting UI events (button clicks, list selections, text changes) to Model logic and updating the View. Asynchronous operations (like auto-save) managed via glib's main context integration.  
-* **Build System:** Cargo (Rust's default build system and package manager)  
-* **Styling:** GTK CSS for theming and achieving the minimalist aesthetic.  
+* **Language:** Rust (for performance, memory safety, native binaries)
+* **GUI Toolkit:** GTK4 via gtk4-rs and glib-rs bindings (for native Linux look & feel, modern features)
+* **Data Storage:** Plain Markdown files (.md) stored in a dedicated directory (\~/.local/share/juswriteit/notes/ by default). Filenames act as titles.
+* **Architecture:** Model-View-Controller (MVC) inspired pattern.
+  * **Model:** Rust modules/structs handling file system operations (listing, reading, writing, deleting, renaming notes).
+  * **View:** GTK4 widgets defined and laid out in Rust code (ApplicationWindow, Paned, ListView/ListBox, TextView, HeaderBar, etc.).
+  * **Controller:** GTK signal handlers connecting UI events (button clicks, list selections, text changes) to Model logic and updating the View. Asynchronous operations (like auto-save) managed via glib's main context integration.
+* **Build System:** Cargo (Rust's default build system and package manager)
+* **Styling:** GTK CSS for theming and achieving the minimalist aesthetic.
 * **Packaging:** Initial target: cargo build \--release for a native binary. Later: AppImage / Flatpak for wider distribution.
 
 ## **2\. Development Phases**
@@ -54,10 +54,15 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
 * **Tasks:**
   - [x] **Advanced Styling:** Use GTK CSS extensively to match the minimalist Freewrite aesthetic. Implement Light/Dark theme support.
      * [x] Created modern dark and light themes with careful typography
-     * [x] Implemented centered "typewriter" style editing area
+     * [x] Implemented centered "typewriter" style editing area with padding
      * [x] Added theme toggle button with appropriate icons
      * [x] Improved sidebar with note previews and better spacing
-     * [x] Enhanced header bar with symbolic icons instead of text buttons
+     * [x] ~~Enhanced header bar with symbolic icons instead of text buttons~~ (Removed header bar)
+     * [x] Implemented frameless window design
+     * [x] Added overlay controls (fullscreen, theme, sidebar toggle)
+     * [x] Added hover controls (rename, delete) to sidebar notes
+     * [x] Moved "New Note" button to sidebar header
+     * [x] Implemented logic to reuse/rename empty notes
   - [ ] **Editor Improvements:**
      * [ ] Basic font selection/size options (maybe via Gtk::FontButton in a settings popover).
      * [ ] Consider basic Markdown syntax highlighting (could be complex, might use an external crate if available or keep it simple).
@@ -80,9 +85,9 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
 
 ## **3\. Key Crates**
 
-* gtk4: Core GTK4 widget library bindings.  
-* glib: Bindings for GLib (core data structures, main loop, asynchronous operations).  
-* tokio or async-std: Optional, if complex async logic beyond simple glib timeouts is needed.  
-* serde, toml: For loading/saving configuration files.  
-* chrono: For handling timestamps in filenames or metadata display.  
+* gtk4: Core GTK4 widget library bindings.
+* glib: Bindings for GLib (core data structures, main loop, asynchronous operations).
+* tokio or async-std: Optional, if complex async logic beyond simple glib timeouts is needed.
+* serde, toml: For loading/saving configuration files.
+* chrono: For handling timestamps in filenames or metadata display.
 * log, env\_logger: For adding application logging.

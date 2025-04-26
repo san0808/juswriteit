@@ -180,11 +180,23 @@
 }
 
 /* === Common styles === */
-/* Main UI elements */
+/* Window */
 window {
     font-family: "Lato", "Open Sans", sans-serif;
+    /* Add transition for theme change */
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+window.fullscreen-mode {
+    /* Styles specific to fullscreen if needed */
+}
+window.sidebar-hidden .sidebar {
+    /* Could add transition here if hiding completely */
+    /* transition: min-width 0.3s ease, opacity 0.3s ease; */
+    /* min-width: 0; */
+    /* opacity: 0; */
 }
 
+/* Main UI elements */
 .main-pane handle {
     min-width: 1px;
     min-height: 1px;
@@ -193,92 +205,126 @@ window {
 
 /* Sidebar styling */
 .sidebar {
-    min-width: 250px;
+    min-width: 260px; /* Set desired width */
+    transition: min-width 0.3s ease; /* Add transition if hiding */
 }
-
+.sidebar-header-box {
+    padding: 10px 8px 10px 16px; /* Adjust padding */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05); /* Match row border */
+}
+.dark-mode .sidebar-header-box {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 .sidebar-header {
-    padding: 16px 16px 12px 16px;
-    font-size: 12px;
+    font-size: 11px; /* Smaller header */
     letter-spacing: 1px;
-    font-weight: 600;
+    font-weight: 700; /* Bolder */
+}
+.new-note-button {
+    padding: 2px 4px; /* Smaller padding */
+    min-height: 0;
+    min-width: 0;
 }
 
 .notes-list {
     border-radius: 0;
 }
 
-.note-row {
-    padding: 0;
+.note-row-outer { /* Target the outer box for hover */
     transition: background-color 0.2s ease;
 }
-
-.note-row-box {
-    padding: 8px 4px;
+.note-row-outer:hover {
+    /* Apply hover background to outer box */
+}
+.dark-mode .note-row-outer:hover {
+    background-color: rgba(56, 189, 248, 0.05);
+}
+.light-mode .note-row-outer:hover {
+    background-color: rgba(2, 132, 199, 0.05);
 }
 
-.note-title {
-    font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 2px;
+.note-row:selected .note-row-outer { /* Apply selection style to outer box */
+    /* background-color: transparent; Remove selection from inner row */
+}
+.dark-mode .note-row:selected .note-row-outer {
+    background-color: rgba(56, 189, 248, 0.15);
+}
+.light-mode .note-row:selected .note-row-outer {
+    background-color: rgba(2, 132, 199, 0.1);
 }
 
-.note-date, 
-.note-preview {
-    font-size: 12px;
-    margin-top: 1px;
+.note-controls {
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s ease;
+}
+.note-row-outer:hover .note-controls { /* Show on outer box hover */
+    opacity: 1;
+}
+.note-control-button {
+    padding: 4px;
+    min-height: 0;
+    min-width: 0;
+    border-radius: 4px;
 }
 
+/* === Dark mode specific styles === */
+.dark-mode .overlay-button {
+    color: @text-dark;
+    background-color: rgba(26, 32, 44, 0.7); /* Slightly transparent dark */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dark-mode .overlay-button:hover {
+    background-color: rgba(45, 55, 72, 0.8);
+}
+
+.dark-mode .note-row:hover .note-controls {
+    opacity: 1;
+}
+.dark-mode .note-control-button {
+    color: @dim-dark;
+    background: none;
+    border: none;
+}
+.dark-mode .note-control-button:hover {
+    color: @text-dark;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* === Light mode specific styles === */
+.light-mode .overlay-button {
+    color: @text-light;
+    background-color: rgba(237, 242, 247, 0.7); /* Slightly transparent light */
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+.light-mode .overlay-button:hover {
+    background-color: rgba(237, 242, 247, 0.9);
+}
+
+.light-mode .note-row:hover .note-controls {
+    opacity: 1;
+}
+.light-mode .note-control-button {
+    color: @dim-light;
+    background: none;
+    border: none;
+}
+.light-mode .note-control-button:hover {
+    color: @text-light;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* === Common styles === */
 /* Editor styling */
 .editor {
-    padding: 0;
+    padding: 0; /* Remove padding from TextView itself */
 }
 
 textview {
     font-family: "Roboto Slab", "Noto Serif", serif;
     font-size: 16px;
+    /* Margins handle the padding now */
 }
 
+/* Remove textview text specific margins, handled by textview margins */
 textview text {
-    margin-top: 25vh;
-    padding: 30px 60px 50vh 60px;  /* Give plenty of space for writing */
-}
-
-/* Header bar styling */
-headerbar {
-    padding: 6px;
-}
-
-.app-title {
-    font-weight: 600;
-    font-size: 15px;
-}
-
-.header-button {
-    min-height: 30px;
-    min-width: 30px;
-    padding: 4px;
-    border-radius: 4px;
-    transition: background-color 0.15s ease;
-}
-
-/* Status bar styling */
-.status-bar {
-    padding: 8px 15px;
-    font-size: 12px;
-}
-
-.word-count {
-    font-size: 12px;
-}
-
-/* Rename dialog styling */
-.rename-dialog {
-    padding: 15px;
-    border-radius: 8px;
-}
-
-.rename-dialog entry {
-    min-height: 36px;
-    font-size: 14px;
-    padding: 4px 8px;
 }
