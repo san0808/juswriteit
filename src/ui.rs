@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label,
           ListBox, ScrolledWindow, Box, TextView, HeaderBar, Button,
-          EventControllerKey};
+          EventControllerKey, CssProvider};
 use glib::clone;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -40,42 +40,73 @@ const AUTO_SAVE_DELAY_MS: u32 = 2000; // 2 seconds
 
 /// Build the user interface
 pub fn build_ui(app: &Application) {
+    // Load CSS for styling
+    load_css();
+    
     // Create the main application window
     let window = ApplicationWindow::builder()
         .application(app)
         .title("juswriteit")
-        .default_width(800)
+        .default_width(900)
         .default_height(600)
+        .css_classes(vec!["dark-mode"]) // Start with dark mode by default
         .build();
 
     // Create a HeaderBar
     let header_bar = HeaderBar::builder()
         .show_title_buttons(true)
-        .title_widget(&Label::new(Some("juswriteit")))
         .build();
+    
+    // Add app title to the headerbar
+    let app_title = Label::builder()
+        .label("Notes")
+        .css_classes(vec!["title"])
+        .build();
+    header_bar.set_title_widget(Some(&app_title));
 
     // Create buttons for the header bar
     let new_note_button = Button::builder()
-        .label("New Note")
-        .tooltip_text("Create a new note")
+        .icon_name("document-new-symbolic")
+        .tooltip_text("New Note")
         .build();
 
-    let rename_note_button = Button::builder() // Added Rename button
-        .label("Rename")
-        .tooltip_text("Rename current note")
+    let rename_note_button = Button::builder()
+        .icon_name("document-edit-symbolic")
+        .tooltip_text("Rename Note")
         .sensitive(false) // Initially disabled
         .build();
 
     let delete_note_button = Button::builder()
-        .label("Delete")
-        .tooltip_text("Delete current note")
+        .icon_name("user-trash-symbolic")
+        .tooltip_text("Delete Note")
         .sensitive(false)
         .build();
+        
+    // Add theme toggle button
+    let theme_toggle_button = Button::builder()
+        .icon_name("display-brightness-symbolic")
+        .tooltip_text("Toggle Light/Dark Theme")
+        .css_classes(vec!["theme-toggle-button"])
+        .build();
+    
+    // Add theme toggle functionality
+    let window_for_theme = window.clone();
+    theme_toggle_button.connect_clicked(move |_| {
+        // Fix: Use proper string comparison for GTK css classes
+        if window_for_theme.has_css_class("dark-mode") {
+            window_for_theme.remove_css_class("dark-mode");
+            window_for_theme.add_css_class("light-mode");
+        } else {
+            window_for_theme.remove_css_class("light-mode");
+            window_for_theme.add_css_class("dark-mode");
+        }
+    });
 
     // Add buttons to the HeaderBar
     header_bar.pack_start(&new_note_button);
-    header_bar.pack_start(&rename_note_button); // Add Rename button
-    header_bar.pack_end(&delete_note_button);
+    header_bar.pack_start(&rename_note_button);
+    header_bar.pack_start(&delete_note_button);
+    header_bar.pack_end(&theme_toggle_button);
 
     // Set the HeaderBar as the window's titlebar
     window.set_titlebar(Some(&header_bar));
@@ -107,23 +138,23 @@ pub fn build_ui(app: &Application) {
     
     left_pane.append(&scrolled_window);
 
-    // Create the editor (TextView) for the right pane
+    // Modify TextView to better match Freewrite style
     let text_view = TextView::builder()
         .wrap_mode(gtk::WrapMode::Word)
         .monospace(false)
         .margin_start(12)
         .margin_end(12)
-        .margin_top(12)
-        .margin_bottom(12)
+        .hexpand(true)
+        .vexpand(true)
         .build();
     
-    text_view.set_editable(true);
+    // Add empty buffer (TextView doesn't have placeholder text in GTK4)
+    let buffer = text_view.buffer();
+    buffer.set_text("");
     
     // Create a ScrolledWindow to contain the TextView with scrolling
     let editor_scrolled_window = ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
-        .hexpand(true)
-        .vexpand(true)
         .build();
     
     editor_scrolled_window.set_child(Some(&text_view));
@@ -136,7 +167,32 @@ pub fn build_ui(app: &Application) {
         .margin_end(10)
         .margin_top(5)
         .margin_bottom(5)
+        .hexpand(true)  // Make it expand to push font controls to the right
         .build();
+    
+    // Create a font size selector
+    let font_size_label = Label::new(Some("16px"));
+    let font_selector = Button::with_label("Lato");
+    
+    // Create a Box for font controls
+    let font_controls = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(8)
+        .margin_end(10)
+        .build();
+    
+    font_controls.append(&font_size_label);
+    font_controls.append(&font_selector);
+    
+    // Create a Box for the status bar with css class
+    let status_box = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .css_classes(vec!["status-bar"])
+        .build();
+    
+    status_box.append(&status_label);
+    // Fix: In GTK4, use append instead of pack_end
+    status_box.append(&font_controls);
     
     // Create a Box for the right side (editor and status)
     let right_pane = Box::builder()
@@ -144,21 +200,21 @@ pub fn build_ui(app: &Application) {
         .build();
     
     right_pane.append(&editor_scrolled_window);
-    right_pane.append(&status_label);
+    right_pane.append(&status_box);
 
     // Create a shared variable to track the active note
     let active_note: Rc<RefCell<Option<ActiveNote>>> = Rc::new(RefCell::new(None));
     
     // Enable/disable buttons based on selection
     let delete_button_ref = delete_note_button.clone();
-    let rename_button_ref = rename_note_button.clone(); // Clone Rename button
+    let rename_button_ref = rename_note_button.clone();
     let active_note_for_button = active_note.clone();
     
     // Update UI based on selection state
     let update_ui_for_selection = move || {
         let has_selection = active_note_for_button.borrow().is_some();
         delete_button_ref.set_sensitive(has_selection);
-        rename_button_ref.set_sensitive(has_selection); // Enable/disable Rename button
+        rename_button_ref.set_sensitive(has_selection);
     };
     
     // Clone for row selection handler
@@ -718,12 +774,50 @@ fn select_note_by_title(list_box: &ListBox, title_to_find: &str) {
     }
 }
 
+/// Load CSS styling for the application
+fn load_css() {
+    // Define possible CSS file locations
+    let css_paths = [
+        "/usr/share/juswriteit/style.css",
+        "src/style.css",
+        "style.css",
+    ];
+    
+    // Find the first available CSS file
+    if let Some(css_file) = css_paths.iter().find(|&path| std::path::Path::new(path).exists()) {
+        match std::fs::read_to_string(css_file) {
+            Ok(css_data) => {
+                // Create CSS provider and load the CSS data
+                let css_provider = CssProvider::new();
+                css_provider.load_from_data(&css_data);
+                
+                // Apply to the default display using the new API
+                if let Some(display) = gtk::gdk::Display::default() {
+                    gtk::style_context_add_provider_for_display(
+                        &display,
+                        &css_provider,
+                        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+                    );
+                    println!("Loaded CSS from {}", css_file);
+                } else {
+                    eprintln!("Warning: Could not get default display. CSS styling not applied.");
+                }
+            },
+            Err(e) => {
+                eprintln!("Warning: Failed to read CSS file {}: {}", css_file, e);
+            }
+        }
+    } else {
+        eprintln!("Warning: No CSS file found. Using default styling.");
+    }
+}
+
 /// Shows a dialog to rename a note (modern GTK4, no deprecated APIs)
 fn show_rename_dialog<F>(parent: &ApplicationWindow, current_title: String, on_confirm: F)
 where
     F: Fn(String) + 'static,
 {
-    use gtk::{Orientation, Box as GtkBox, Entry, Button, Label, Align, ApplicationWindow};
+    use gtk::{Orientation, Box as GtkBox, Entry, Button, Label, Align};
 
     // Create a new transient window as a modal dialog
     let dialog = ApplicationWindow::builder()
@@ -732,6 +826,7 @@ where
         .title("Rename Note")
         .default_width(320)
         .default_height(120)
+        .css_classes(vec!["rename-dialog"])  // Add CSS class for styling
         .build();
 
     // Main vertical box

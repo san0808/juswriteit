@@ -46,13 +46,13 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
   - [x] **Rename Note:** Implement renaming (e.g., via context menu or double-click). Rename the file and update the list item.
   - [x] **Auto-Save:** Implement optional auto-saving triggered by TextBuffer::changed signal after a short delay (using glib::timeout\_add\_local\_once).
   - [x] **Status Bar Info:** Add a simple status bar (e.g., using Gtk::Box at the bottom) to show word count.
-  - [ ] **Basic Styling:** Apply initial GTK CSS to customize colors, fonts, and spacing for a cleaner look.
+  - [x] **Basic Styling:** Apply initial GTK CSS to customize colors, fonts, and spacing for a cleaner look.
 
 ### **Phase 3: Polish & Production Readiness**
 
 * **Goal:** Refine the UI/UX, add quality-of-life features, and prepare for distribution.
 * **Tasks:**
-  - [ ] **Advanced Styling:** Use GTK CSS extensively to match the minimalist Freewrite aesthetic. Implement Light/Dark theme support (respecting system preference via Gtk::StyleManager).
+  - [x] **Advanced Styling:** Use GTK CSS extensively to match the minimalist Freewrite aesthetic. Implement Light/Dark theme support (respecting system preference via Gtk::StyleManager).
   - [ ] **Editor Improvements:**
      * Basic font selection/size options (maybe via Gtk::FontButton in a settings popover).
      * Consider basic Markdown syntax highlighting (could be complex, might use an external crate if available or keep it simple).

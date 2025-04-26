@@ -1,0 +1,208 @@
+/* juswriteit - Minimalist writing app styling */
+
+/* Color variables */
+@define-color bg-dark #2d3748;
+@define-color text-dark #f1f5f9;
+@define-color sidebar-dark #1e293b;
+@define-color accent-dark #38bdf8;
+@define-color dim-dark rgba(241, 245, 249, 0.6);
+
+@define-color bg-light #fff8f0;
+@define-color text-light #1e293b;
+@define-color sidebar-light #f1f5f9;
+@define-color accent-light #0284c7;
+@define-color dim-light rgba(30, 41, 59, 0.6);
+
+/* Dark mode styles */
+.dark-mode {
+    background-color: @bg-dark;
+    color: @text-dark;
+}
+
+.dark-mode .notes-list {
+    background-color: @sidebar-dark;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .notes-list row {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: transparent;
+}
+
+.dark-mode .notes-list row:selected {
+    background-color: rgba(56, 189, 248, 0.2);
+    color: @text-dark;
+}
+
+.dark-mode .notes-list row:hover:not(:selected) {
+    background-color: rgba(56, 189, 248, 0.1);
+}
+
+.dark-mode .note-title {
+    color: @text-dark;
+}
+
+.dark-mode .note-date,
+.dark-mode .note-preview {
+    color: @dim-dark;
+}
+
+.dark-mode .status-bar {
+    background-color: @sidebar-dark;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: @dim-dark;
+}
+
+.dark-mode textview {
+    background-color: @bg-dark;
+}
+
+.dark-mode textview text {
+    background-color: @bg-dark;
+    color: @text-dark;
+}
+
+.dark-mode headerbar {
+    background-color: @sidebar-dark;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode button {
+    background-color: rgba(56, 189, 248, 0.1);
+    color: @text-dark;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.dark-mode button:hover {
+    background-color: rgba(56, 189, 248, 0.2);
+}
+
+/* Light mode styles */
+.light-mode {
+    background-color: @bg-light;
+    color: @text-light;
+}
+
+.light-mode .notes-list {
+    background-color: @sidebar-light;
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.light-mode .notes-list row {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    background-color: transparent;
+}
+
+.light-mode .notes-list row:selected {
+    background-color: rgba(2, 132, 199, 0.1);
+    color: @text-light;
+}
+
+.light-mode .notes-list row:hover:not(:selected) {
+    background-color: rgba(2, 132, 199, 0.05);
+}
+
+.light-mode .note-title {
+    color: @text-light;
+}
+
+.light-mode .note-date,
+.light-mode .note-preview {
+    color: @dim-light;
+}
+
+.light-mode .status-bar {
+    background-color: @sidebar-light;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    color: @dim-light;
+}
+
+.light-mode textview {
+    background-color: @bg-light;
+}
+
+.light-mode textview text {
+    background-color: @bg-light;
+    color: @text-light;
+}
+
+.light-mode headerbar {
+    background-color: @sidebar-light;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.light-mode button {
+    background-color: rgba(2, 132, 199, 0.1);
+    color: @text-light;
+    border: 1px solid rgba(2, 132, 199, 0.3);
+}
+
+.light-mode button:hover {
+    background-color: rgba(2, 132, 199, 0.2);
+}
+
+/* Implement freewrite-style "typewriter" cursor position */
+textview {
+    padding: 30px;
+    font-family: "Lato", "Noto Serif", serif;
+    font-size: 16px;
+    caret-color: #38bdf8;
+}
+
+/* Center text vertically in editor */
+textview text {
+    margin-top: 25vh;
+    padding-bottom: 50vh;  /* Push content up so cursor is centered */
+}
+
+label.title {
+    font-weight: bold;
+    font-size: 16px;
+    margin: 6px 0;
+}
+
+.notes-list row {
+    transition: background-color 0.15s ease;
+}
+
+.note-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.note-date, 
+.note-preview {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+headerbar {
+    padding: 4px;
+    box-shadow: none;
+}
+
+headerbar button {
+    margin: 2px 4px;
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+.theme-toggle-button {
+    min-height: 24px;
+    min-width: 24px;
+    padding: 2px;
+}
+
+/* Rename dialog */
+.rename-dialog textview {
+    padding: 8px;
+}
+
+/* Bottom UI controls */
+.status-bar {
+    padding: 6px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
