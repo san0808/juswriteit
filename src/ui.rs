@@ -788,6 +788,9 @@ where
             on_confirm(new_title);
         } else if new_title.trim().is_empty() {
             show_error_dialog(&parent_clone, "Rename Error", "New title cannot be empty.");
+        } else {
+            // User entered the same title - just close the dialog without an error
+            dialog_clone.close();
         }
     });
 
