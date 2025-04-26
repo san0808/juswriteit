@@ -1,7 +1,7 @@
 use gtk::prelude::*;
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label,
           ListBox, ScrolledWindow, Box, TextView, HeaderBar, Button,
-          EventControllerKey, Entry, Dialog, ResponseType};
+          EventControllerKey};
 use glib::clone;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -169,79 +169,99 @@ pub fn build_ui(app: &Application) {
     let status_label_for_loading = status_label.clone();
 
     // Connect row-selected signal to load note content
-    list_box.connect_row_selected(move |_listbox, row_opt| { // Add underscore
-        // Cancel any pending auto-save
-        if let Some(active) = active_note_for_loading.borrow_mut().as_mut() {
-            if let Some(source_id) = active.auto_save_source_id.take() {
-                // Ignore the result of remove()
-                let _ = source_id.remove();
-            }
-        }
-
-        if let Some(row) = row_opt {
-            // Get the note title from the custom widget inside the row
-            let title = row.child()
-                .and_then(|child_box| child_box.downcast::<Box>().ok())
-                .and_then(|hbox| hbox.first_child()) // Get the first child (title label)
-                .and_then(|widget| widget.downcast::<Label>().ok())
-                .map(|label| label.label().to_string());
-
-            if let Some(title) = title {
-                // Build the full path to the note file
-                let notes_dir = crate::utils::get_notes_dir();
-                let file_path = notes_dir.join(format!("{}.md", title));
-
-                // Load the note content
-                match Note::load(&file_path) {
-                    Ok(note) => {
-                        // Update the TextView
-                        text_view_for_loading.buffer().set_text(&note.content);
-
-                        // Update the active note
-                        *active_note_for_loading.borrow_mut() = Some(ActiveNote {
-                            path: file_path,
-                            title: title.to_string(),
-                            has_changes: false,
-                            auto_save_source_id: None,
-                            note: note.clone(), // Store the loaded note
-                        });
-
-                        // Update window title
-                        window_for_loading.set_title(Some(&format!("{} - juswriteit", title)));
-                        
-                        // Update status label
-                        let word_count = count_words(&note.content);
-                        status_label_for_loading.set_text(&format!("{} words", word_count));
-                    },
-                    Err(e) => {
-                        eprintln!("Error loading note content: {}", e);
-                        text_view_for_loading.buffer().set_text("");
-                        window_for_loading.set_title(Some("juswriteit"));
-                        status_label_for_loading.set_text("Error loading note");
-                        *active_note_for_loading.borrow_mut() = None;
+    list_box.connect_row_selected({
+        let active_note_for_loading = active_note.clone();
+        let text_view_for_loading = text_view.clone();
+        let window_for_loading = window.clone();
+        let status_label_for_loading = status_label.clone();
+        let update_ui_for_selection_on_load = update_ui_for_selection.clone();
+        move |_listbox, row_opt| {
+            // Cancel any pending auto-save
+            // --- FIX: Only borrow mutably for the minimum time needed ---
+            let mut clear_auto_save = false;
+            {
+                let mut active = active_note_for_loading.borrow_mut();
+                if let Some(active) = active.as_mut() {
+                    if active.auto_save_source_id.is_some() {
+                        clear_auto_save = true;
                     }
                 }
+            }
+            if clear_auto_save {
+                // Now borrow mutably again just to clear the source_id
+                if let Some(active) = active_note_for_loading.borrow_mut().as_mut() {
+                    if let Some(source_id) = active.auto_save_source_id.take() {
+                        let _ = source_id.remove();
+                    }
+                }
+            }
+            // --- END FIX ---
+
+            if let Some(row) = row_opt {
+                // Get the note title from the custom widget inside the row
+                let title = row.child()
+                    .and_then(|child_box| child_box.downcast::<Box>().ok())
+                    .and_then(|hbox| hbox.first_child()) // Get the first child (title label)
+                    .and_then(|widget| widget.downcast::<Label>().ok())
+                    .map(|label| label.label().to_string());
+
+                if let Some(title) = title {
+                    // Build the full path to the note file
+                    let notes_dir = crate::utils::get_notes_dir();
+                    let file_path = notes_dir.join(format!("{}.md", title));
+
+                    // Load the note content
+                    match Note::load(&file_path) {
+                        Ok(note) => {
+                            // Update the TextView
+                            text_view_for_loading.buffer().set_text(&note.content);
+
+                            // Update the active note
+                            *active_note_for_loading.borrow_mut() = Some(ActiveNote {
+                                path: file_path,
+                                title: title.to_string(),
+                                has_changes: false,
+                                auto_save_source_id: None,
+                                note: note.clone(), // Store the loaded note
+                            });
+
+                            // Update window title
+                            window_for_loading.set_title(Some(&format!("{} - juswriteit", title)));
+                            
+                            // Update status label
+                            let word_count = count_words(&note.content);
+                            status_label_for_loading.set_text(&format!("{} words", word_count));
+                        },
+                        Err(e) => {
+                            eprintln!("Error loading note content: {}", e);
+                            text_view_for_loading.buffer().set_text("");
+                            window_for_loading.set_title(Some("juswriteit"));
+                            status_label_for_loading.set_text("Error loading note");
+                            *active_note_for_loading.borrow_mut() = None;
+                        }
+                    }
+                } else {
+                     // Handle case where title couldn't be extracted (e.g., placeholder row)
+                    *active_note_for_loading.borrow_mut() = None;
+                    text_view_for_loading.buffer().set_text("");
+                    window_for_loading.set_title(Some("juswriteit"));
+                    status_label_for_loading.set_text("Ready");
+                }
             } else {
-                 // Handle case where title couldn't be extracted (e.g., placeholder row)
-                *active_note_for_loading.borrow_mut() = None;
+                // No row selected, clear the TextView
                 text_view_for_loading.buffer().set_text("");
+                
+                // Clear the active note
+                *active_note_for_loading.borrow_mut() = None;
+                
+                // Reset window title and status
                 window_for_loading.set_title(Some("juswriteit"));
                 status_label_for_loading.set_text("Ready");
             }
-        } else {
-            // No row selected, clear the TextView
-            text_view_for_loading.buffer().set_text("");
             
-            // Clear the active note
-            *active_note_for_loading.borrow_mut() = None;
-            
-            // Reset window title and status
-            window_for_loading.set_title(Some("juswriteit"));
-            status_label_for_loading.set_text("Ready");
+            // Update UI state based on selection
+            update_ui_for_selection_on_load();
         }
-        
-        // Update UI state based on selection
-        update_ui_for_selection_on_load();
     });
 
     // Connect to the "changed" signal of the text buffer for auto-save
@@ -698,54 +718,84 @@ fn select_note_by_title(list_box: &ListBox, title_to_find: &str) {
     }
 }
 
-
-/// Shows a dialog to rename a note
-fn show_rename_dialog<F>(parent: &ApplicationWindow, current_title: String, on_confirm: F) // Take owned String
+/// Shows a dialog to rename a note (modern GTK4, no deprecated APIs)
+fn show_rename_dialog<F>(parent: &ApplicationWindow, current_title: String, on_confirm: F)
 where
     F: Fn(String) + 'static,
 {
-    let dialog = Dialog::builder()
-        .title("Rename Note")
+    use gtk::{Orientation, Box as GtkBox, Entry, Button, Label, Align, ApplicationWindow};
+
+    // Create a new transient window as a modal dialog
+    let dialog = ApplicationWindow::builder()
         .transient_for(parent)
         .modal(true)
+        .title("Rename Note")
+        .default_width(320)
+        .default_height(120)
         .build();
 
-    let content_area = dialog.content_area();
+    // Main vertical box
+    let vbox = GtkBox::new(Orientation::Vertical, 12);
+    vbox.set_margin_top(16);
+    vbox.set_margin_bottom(16);
+    vbox.set_margin_start(16);
+    vbox.set_margin_end(16);
+
+    let label = Label::new(Some("Enter new name:"));
+    label.set_halign(Align::Start);
+    vbox.append(&label);
 
     let entry = Entry::builder()
-        .text(&current_title) // Borrow owned String here
-        .activates_default(true) // Allow Enter key to confirm
-        .margin_start(10)
-        .margin_end(10)
-        .margin_top(10)
-        .margin_bottom(10)
+        .text(&current_title)
+        .hexpand(true)
         .build();
+    vbox.append(&entry);
 
-    content_area.append(&entry);
+    // Button row
+    let button_box = GtkBox::new(Orientation::Horizontal, 8);
+    button_box.set_halign(Align::End);
 
-    dialog.add_button("Cancel", ResponseType::Cancel);
-    let _confirm_button = dialog.add_button("Rename", ResponseType::Accept); // Prefix unused variable
-    dialog.set_default_response(ResponseType::Accept); // Default to Rename button
+    let cancel_button = Button::with_label("Cancel");
+    let rename_button = Button::with_label("Rename");
+    button_box.append(&cancel_button);
+    button_box.append(&rename_button);
 
-    // Focus the entry field initially
-    entry.grab_focus();
-    // Select the text for easy replacement
-    entry.select_region(0, -1);
+    vbox.append(&button_box);
+    dialog.set_child(Some(&vbox));
 
-    // Clone parent for use inside the closure if needed for error dialog
+    // Focus entry and select text when shown
+    let entry_clone = entry.clone();
+    dialog.connect_map(move |_| {
+        entry_clone.grab_focus();
+        entry_clone.select_region(0, -1);
+    });
+
+    // Cancel closes the dialog
+    let dialog_clone = dialog.clone();
+    cancel_button.connect_clicked(move |_| {
+        dialog_clone.close();
+    });
+
+    // Confirm logic
+    let dialog_clone = dialog.clone();
     let parent_clone = parent.clone();
-    dialog.connect_response(move |dialog, response| {
-        dialog.close();
-        if response == ResponseType::Accept {
-            let new_title = entry.text().to_string();
-            // Use owned current_title here
-            if !new_title.trim().is_empty() && new_title != current_title {
-                on_confirm(new_title);
-            } else if new_title.trim().is_empty() {
-                // Use cloned parent here
-                show_error_dialog(&parent_clone, "Rename Error", "New title cannot be empty.");
-            }
+    let current_title_clone = current_title.clone();
+    let entry_for_rename = entry.clone();
+    rename_button.connect_clicked(move |_| {
+        let new_title = entry_for_rename.text().to_string();
+        if !new_title.trim().is_empty() && new_title != current_title_clone {
+            dialog_clone.close();
+            on_confirm(new_title);
+        } else if new_title.trim().is_empty() {
+            show_error_dialog(&parent_clone, "Rename Error", "New title cannot be empty.");
         }
+    });
+
+    // Allow pressing Enter to confirm
+    let rename_button_clone = rename_button.clone();
+    let entry_for_activate = entry.clone();
+    entry_for_activate.connect_activate(move |_| {
+        rename_button_clone.emit_clicked();
     });
 
     dialog.present();
