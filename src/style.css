@@ -198,15 +198,21 @@ window.sidebar-hidden .sidebar {
 
 /* Main UI elements */
 .main-pane handle {
-    min-width: 1px;
-    min-height: 1px;
-    background-color: transparent;
+    min-width: 3px; /* Slightly thicker handle */
+    min-height: 3px;
+    background-color: rgba(128, 128, 128, 0.1); /* Subtle color */
+    border-left: 1px solid rgba(0,0,0,0.1);
+    border-right: 1px solid rgba(0,0,0,0.1);
+}
+.dark-mode .main-pane handle {
+    background-color: rgba(200, 200, 200, 0.1);
+    border-left: 1px solid rgba(255,255,255,0.1);
+    border-right: 1px solid rgba(255,255,255,0.1);
 }
 
 /* Sidebar styling */
 .sidebar {
-    min-width: 260px; /* Set desired width */
-    transition: min-width 0.3s ease; /* Add transition if hiding */
+    transition: opacity 0.3s ease; /* Transition opacity if needed for hiding */
 }
 .sidebar-header-box {
     padding: 10px 8px 10px 16px; /* Adjust padding */
@@ -270,11 +276,12 @@ window.sidebar-hidden .sidebar {
 /* === Dark mode specific styles === */
 .dark-mode .overlay-button {
     color: @text-dark;
-    background-color: rgba(26, 32, 44, 0.7); /* Slightly transparent dark */
+    background-color: rgba(26, 32, 44, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 .dark-mode .overlay-button:hover {
-    background-color: rgba(45, 55, 72, 0.8);
+    background-color: rgba(45, 55, 72, 0.6);
 }
 
 .dark-mode .note-row:hover .note-controls {
@@ -293,11 +300,12 @@ window.sidebar-hidden .sidebar {
 /* === Light mode specific styles === */
 .light-mode .overlay-button {
     color: @text-light;
-    background-color: rgba(237, 242, 247, 0.7); /* Slightly transparent light */
+    background-color: rgba(237, 242, 247, 0.4);
     border: 1px solid rgba(0, 0, 0, 0.1);
 }
+
 .light-mode .overlay-button:hover {
-    background-color: rgba(237, 242, 247, 0.9);
+    background-color: rgba(237, 242, 247, 0.7);
 }
 
 .light-mode .note-row:hover .note-controls {
@@ -313,18 +321,176 @@ window.sidebar-hidden .sidebar {
     background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* === Common styles === */
-/* Editor styling */
+/* === Shortcuts Dialog === */
+.shortcuts-dialog {
+    border-radius: 6px;
+}
+
+.shortcuts-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+.shortcuts-section {
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode .shortcuts-section {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shortcut-key {
+    font-family: "JetBrains Mono", monospace;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+.dark-mode .shortcut-key {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Clean up transitions */
+.transition * {
+    transition-property: background-color, color, opacity, transform;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
+}
+
+/* Fullscreen mode adjustments */
+.fullscreen-mode .top-bar,
+.fullscreen-mode .app-logo {
+    opacity: 0;
+}
+
+.fullscreen-mode:hover .top-bar,
+.fullscreen-mode:hover .app-logo {
+    opacity: 0.5;
+}
+
+/* === Editor styling enhancements === */
 .editor {
-    padding: 0; /* Remove padding from TextView itself */
+    padding: 0;
 }
 
 textview {
-    font-family: "Roboto Slab", "Noto Serif", serif;
+    font-family: "JetBrains Mono", "SF Mono", monospace;
     font-size: 16px;
-    /* Margins handle the padding now */
+    line-height: 1.7;
 }
 
-/* Remove textview text specific margins, handled by textview margins */
 textview text {
+    margin-top: 20%; /* Changed from vh to % */
+    margin-left: 10%;
+    margin-right: 10%;
+}
+
+.dark-mode textview,
+.dark-mode textview text {
+    background-color: @bg-dark;
+    color: @text-dark;
+    caret-color: @accent-dark;
+}
+
+.light-mode textview,
+.light-mode textview text {
+    background-color: @bg-light;
+    color: @text-light;
+    caret-color: @accent-light;
+}
+
+/* Enhance text editor focus */
+textview:focus {
+    outline: none;
+}
+
+.dark-mode textview:focus {
+    caret-color: @accent-dark;
+}
+
+.light-mode textview:focus {
+    caret-color: @accent-light;
+}
+
+/* Ensure the controls don't interfere with text editing */
+textview selection {
+    background-color: rgba(56, 189, 248, 0.4);
+    color: inherit;
+}
+
+.dark-mode textview selection {
+    background-color: rgba(56, 189, 248, 0.4);
+}
+
+.light-mode textview selection {
+    background-color: rgba(2, 132, 199, 0.3);
+}
+
+/* Improve cursor visibility */
+.editor-area:focus-within {
+    outline: none;
+}
+
+/* Make sure the editor is accessible with keyboard focus */
+.editor-area {
+    transition: background-color 0.3s ease;
+}
+
+/* === Top bar and window controls === */
+.top-bar {
+    background-color: transparent;
+    min-height: 32px;
+    opacity: 0.01; /* Almost invisible by default */
+    transition: opacity 0.3s ease;
+}
+
+window:hover .top-bar {
+    opacity: 1; /* Visible on window hover */
+}
+
+.window-handle {
+    min-height: 32px;
+    -gtk-window-dragging: true; /* Makes the area draggable */
+}
+
+.window-controls {
+    margin: 2px 2px 0 0;
+}
+
+.window-controls button {
+    min-height: 22px;
+    min-width: 22px;
+    padding: 2px;
+    border-radius: 50%;
+    background-color: transparent;
+    color: inherit;
+    border: none;
+}
+
+/* === Bottom Control Bar === */
+.control-bar {
+    background: transparent;
+    transition: opacity 0.3s ease;
+}
+
+.app-logo {
+    font-family: "Roboto Slab", "Noto Serif", serif;
+    font-size: 12px;
+    font-weight: 300;
+    opacity: 0.3;
+    letter-spacing: 3px;
+    user-select: none;
+}
+
+.dark-mode .app-logo {
+    color: @text-dark;
+}
+
+.light-mode .app-logo {
+    color: @text-light;
 }

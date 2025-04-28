@@ -198,4 +198,31 @@ impl Note {
         
         Ok(false) // Title was not updated
     }
+
+    /// Generate title from the note's content automatically
+    pub fn generate_title_from_content(&self) -> Option<String> {
+        // Extract the first non-empty line
+        let first_line = self.content
+            .lines()
+            .find(|line| !line.trim().is_empty())?;
+
+        // Limit title length
+        let mut title = first_line.trim();
+        if title.len() > 50 {
+            title = &title[0..47];
+            return Some(format!("{}...", title));
+        }
+        
+        // If title is too short, stick with date-based title
+        if title.len() < 3 {
+            return None;
+        }
+        
+        Some(title.to_string())
+    }
+
+    /// Check if this note has a default date-based title
+    pub fn has_default_title(&self) -> bool {
+        self.title.starts_with("Note 20")
+    }
 }

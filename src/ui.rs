@@ -1,8 +1,9 @@
 use gtk::prelude::*;
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label,
           ListBox, ScrolledWindow, Box, TextView, Button,
-          EventControllerKey, CssProvider, Overlay};
-use glib::clone;
+          EventControllerKey, CssProvider, Overlay, WindowHandle, WindowControls};
+use glib::{clone, Propagation};
+use gtk::gdk::{Key, ModifierType};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::PathBuf;
@@ -38,6 +39,11 @@ impl Clone for ActiveNote {
 // Auto-save delay in milliseconds
 const AUTO_SAVE_DELAY_MS: u32 = 2000; // 2 seconds
 
+// Add app name constant
+const APP_NAME: &str = "Penscript"; // New name suggestion - simple, memorable, relates to writing
+const INITIAL_WINDOW_WIDTH: i32 = 1000;
+const INITIAL_SIDEBAR_WIDTH: i32 = (INITIAL_WINDOW_WIDTH as f32 * 0.25) as i32; // Calculate 25%
+
 /// Build the user interface
 pub fn build_ui(app: &Application) {
     // Load CSS for styling
@@ -46,82 +52,42 @@ pub fn build_ui(app: &Application) {
     // Create the main application window - undecorated
     let window = ApplicationWindow::builder()
         .application(app)
-        .title("JustWrite")
-        .default_width(1000)
+        .title(APP_NAME)
+        .default_width(INITIAL_WINDOW_WIDTH) // Use constant
         .default_height(700)
         .css_classes(vec!["dark-mode", "transition"])
         .decorated(false) // Make window frameless
         .build();
 
-    // Create fullscreen toggle button (will be an overlay)
-    let fullscreen_button = Button::builder()
-        .icon_name("view-fullscreen-symbolic")
-        .tooltip_text("Toggle Fullscreen Mode")
-        .css_classes(vec!["overlay-button", "fullscreen-button"])
-        .halign(gtk::Align::End)
-        .valign(gtk::Align::Start)
-        .margin_top(10)
-        .margin_end(10)
-        .build();
-    
-    // Fullscreen toggle functionality
-    let window_for_fullscreen = window.clone();
-    fullscreen_button.connect_clicked(move |button| {
-        let is_fullscreen = window_for_fullscreen.is_fullscreen();
-        if is_fullscreen {
-            window_for_fullscreen.unfullscreen();
-            window_for_fullscreen.remove_css_class("fullscreen-mode");
-            button.set_icon_name("view-fullscreen-symbolic");
-        } else {
-            window_for_fullscreen.fullscreen();
-            window_for_fullscreen.add_css_class("fullscreen-mode");
-            button.set_icon_name("view-restore-symbolic");
-        }
-    });
-    
-    // Add theme toggle button (will be an overlay)
-    let theme_toggle_button = Button::builder()
-        .icon_name("weather-clear-night-symbolic")
-        .tooltip_text("Toggle Light/Dark Theme")
-        .css_classes(vec!["overlay-button", "theme-toggle"])
-        .halign(gtk::Align::End)
-        .valign(gtk::Align::Start)
-        .margin_top(10)
-        .margin_end(50) // Position next to fullscreen button
-        .build();
-    
-    // Add theme toggle functionality
-    let window_for_theme = window.clone();
-    theme_toggle_button.connect_clicked(move |button| {
-        if window_for_theme.has_css_class("dark-mode") {
-            window_for_theme.remove_css_class("dark-mode");
-            window_for_theme.add_css_class("light-mode");
-            button.set_icon_name("weather-clear-symbolic");
-        } else {
-            window_for_theme.remove_css_class("light-mode");
-            window_for_theme.add_css_class("dark-mode");
-            button.set_icon_name("weather-clear-night-symbolic");
-        }
-    });
-    
-    // Create sidebar toggle button (will be an overlay)
-    let sidebar_toggle = Button::builder()
-        .icon_name("view-sidebar-start-symbolic")
-        .tooltip_text("Toggle Sidebar")
-        .css_classes(vec!["overlay-button", "sidebar-toggle"])
-        .halign(gtk::Align::Start)
-        .valign(gtk::Align::Start)
-        .margin_top(10)
-        .margin_start(10)
-        .build();
-
-    // Instead of a Box, create an Overlay for the main container
+    // Main overlay for UI elements
     let main_overlay = Overlay::new();
+    
+    // Create window handle for drag operations
+    let window_handle = WindowHandle::builder()
+        .css_classes(vec!["window-handle"])
+        .hexpand(true)
+        .build();
+    
+    // Create window controls (minimize, maximize, close)
+    let window_controls = WindowControls::builder()
+        .side(gtk::PackType::End)
+        .css_classes(vec!["window-controls"])
+        .build();
+    
+    // Create a top bar container to hold window controls
+    let top_bar = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .css_classes(vec!["top-bar"])
+        .build();
+    
+    top_bar.append(&window_handle);
+    top_bar.append(&window_controls);
     
     // Create a Paned widget with horizontal orientation
     let paned = Paned::builder()
         .orientation(Orientation::Horizontal)
-        .wide_handle(false)
+        .wide_handle(true) // Make handle easier to grab
+        .position(INITIAL_SIDEBAR_WIDTH) // Set initial position
         .css_classes(vec!["main-pane"])
         .hexpand(true)
         .vexpand(true)
@@ -170,17 +136,24 @@ pub fn build_ui(app: &Application) {
     let left_pane = Box::builder()
         .orientation(Orientation::Vertical)
         .css_classes(vec!["sidebar"])
-        .width_request(260)
         .build();
     
     // Add the sidebar components
     left_pane.append(&sidebar_header_box); // Use the box containing label and button
     left_pane.append(&scrolled_window);
 
-    // --- Editor Area Setup ---
+    // --- Right Pane (Editor Area) Setup ---
+    let right_pane = Box::builder()
+        .orientation(Orientation::Vertical)
+        .css_classes(vec!["editor-area"])
+        .hexpand(true)
+        .vexpand(true)
+        .build();
+    
+    // Create a text view for editing with proper margins and styling
     let text_view = TextView::builder()
         .wrap_mode(gtk::WrapMode::Word)
-        .monospace(false)
+        .monospace(true) // Use monospace font
         .css_classes(vec!["editor"])
         .hexpand(true)
         .vexpand(true)
@@ -193,6 +166,9 @@ pub fn build_ui(app: &Application) {
     // Configure buffer with some initial settings
     let buffer = text_view.buffer();
     buffer.set_text("");
+    
+    // Ensure text_view is editable
+    text_view.set_editable(true);
     
     // Create a ScrolledWindow to contain the TextView with scrolling
     let editor_scrolled_window = ScrolledWindow::builder()
@@ -226,48 +202,151 @@ pub fn build_ui(app: &Application) {
     status_box.append(&status_label);
     status_box.append(&word_count_label);
     
-    // --- Right Pane Setup ---
-    let right_pane = Box::builder()
-        .orientation(Orientation::Vertical)
-        .css_classes(vec!["editor-area"])
-        .build();
-    
+    // Add editor components to right pane
     right_pane.append(&editor_scrolled_window);
     right_pane.append(&status_box);
 
-    // --- Main Layout ---
-    // Add paned to the overlay as the main content
-    main_overlay.set_child(Some(&paned));
+    // --- Create Control Bar at Bottom ---
+    let control_bar = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .css_classes(vec!["control-bar"])
+        .halign(gtk::Align::Fill)
+        .valign(gtk::Align::End)
+        .margin_bottom(10)
+        .margin_start(10)
+        .margin_end(10)
+        .spacing(8)
+        .build();
     
-    // Add overlay buttons
-    main_overlay.add_overlay(&sidebar_toggle);
-    main_overlay.add_overlay(&fullscreen_button);
-    main_overlay.add_overlay(&theme_toggle_button);
+    // Create app logo/watermark
+    let app_logo = Label::builder()
+        .label(APP_NAME)
+        .css_classes(vec!["app-logo"])
+        .halign(gtk::Align::Center)
+        .hexpand(true)
+        .build();
+    
+    // Create control buttons container (right side)
+    let controls_container = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .spacing(8)
+        .halign(gtk::Align::End)
+        .build();
+    
+    // Create keyboard shortcuts button
+    let shortcuts_button = Button::builder()
+        .icon_name("input-keyboard-symbolic")
+        .tooltip_text("Keyboard Shortcuts (Ctrl+K)")
+        .css_classes(vec!["overlay-button", "shortcuts-button"])
+        .build();
+    
+    // Create sidebar toggle button
+    let sidebar_toggle = Button::builder()
+        .icon_name("view-sidebar-start-symbolic")
+        .tooltip_text("Toggle Sidebar (Ctrl+B)")
+        .css_classes(vec!["overlay-button", "sidebar-toggle"])
+        .build();
+    
+    // Create theme toggle button
+    let theme_toggle_button = Button::builder()
+        .icon_name("weather-clear-night-symbolic")
+        .tooltip_text("Toggle Light/Dark Theme (Ctrl+T)")
+        .css_classes(vec!["overlay-button", "theme-toggle"])
+        .build();
+    
+    // Create fullscreen toggle button
+    let fullscreen_button = Button::builder()
+        .icon_name("view-fullscreen-symbolic")
+        .tooltip_text("Toggle Fullscreen Mode (F11)")
+        .css_classes(vec!["overlay-button", "fullscreen-button"])
+        .build();
+    
+    // Add buttons to controls container
+    controls_container.append(&shortcuts_button);
+    controls_container.append(&sidebar_toggle);
+    controls_container.append(&theme_toggle_button);
+    controls_container.append(&fullscreen_button);
+    
+    // Add elements to control bar
+    control_bar.append(&app_logo);
+    control_bar.append(&controls_container);
+    
+    // --- Main Layout Assembly ---
+    // Create main vertical box to hold all components
+    let main_box = Box::builder()
+        .orientation(Orientation::Vertical)
+        .hexpand(true)
+        .vexpand(true)
+        .build();
+    
+    // Add top bar (window controls)
+    main_box.append(&top_bar);
+    
+    // Add paned container (main content)
+    main_box.append(&paned);
+    
+    // Set main box as the overlay child
+    main_overlay.set_child(Some(&main_box));
+    
+    // Add control bar as an overlay
+    main_overlay.add_overlay(&control_bar);
+    
+    // Set the overlay as the window child
+    window.set_child(Some(&main_overlay));
+
+    // --- Button functionality ---
+    // Fullscreen toggle functionality
+    let window_for_fullscreen = window.clone();
+    fullscreen_button.connect_clicked(move |button| {
+        let is_fullscreen = window_for_fullscreen.is_fullscreen();
+        if is_fullscreen {
+            window_for_fullscreen.unfullscreen();
+            window_for_fullscreen.remove_css_class("fullscreen-mode");
+            button.set_icon_name("view-fullscreen-symbolic");
+        } else {
+            window_for_fullscreen.fullscreen();
+            window_for_fullscreen.add_css_class("fullscreen-mode");
+            button.set_icon_name("view-restore-symbolic");
+        }
+    });
+    
+    // Theme toggle functionality
+    let window_for_theme = window.clone();
+    theme_toggle_button.connect_clicked(move |button| {
+        if window_for_theme.has_css_class("dark-mode") {
+            window_for_theme.remove_css_class("dark-mode");
+            window_for_theme.add_css_class("light-mode");
+            button.set_icon_name("weather-clear-symbolic");
+        } else {
+            window_for_theme.remove_css_class("light-mode");
+            window_for_theme.add_css_class("dark-mode");
+            button.set_icon_name("weather-clear-night-symbolic");
+        }
+    });
     
     // Sidebar toggle functionality
     let window_for_sidebar = window.clone();
     let left_pane_for_sidebar = left_pane.clone();
-    let paned_for_sidebar = paned.clone(); // Clone paned
+    let paned_for_sidebar = paned.clone();
     sidebar_toggle.connect_clicked(move |_| {
-        // Toggle sidebar visibility using CSS class on the window
         if window_for_sidebar.has_css_class("sidebar-hidden") {
             window_for_sidebar.remove_css_class("sidebar-hidden");
-            left_pane_for_sidebar.set_visible(true); // Ensure pane is visible
-            paned_for_sidebar.set_position(260); // Restore position using the clone
+            left_pane_for_sidebar.set_visible(true);
+            // Restore to a reasonable position, could be dynamic based on current window width
+            // For simplicity, using the initial calculated width
+            paned_for_sidebar.set_position(INITIAL_SIDEBAR_WIDTH); 
         } else {
             window_for_sidebar.add_css_class("sidebar-hidden");
-            // Optionally hide the pane completely or just set position to 0
-            paned_for_sidebar.set_position(0); // Use the clone
-            // left_pane_for_sidebar.set_visible(false); // Alternative: hide completely
+            paned_for_sidebar.set_position(0); // Hide by moving divider to the edge
         }
     });
     
-    // Connect fullscreen state to show/hide standard window elements if needed
-    // (Currently handled by CSS and overlay visibility)
-    window.connect_fullscreened_notify(move |_window| {
-        // Potentially adjust styles or visibility further if needed
+    // Keyboard shortcuts dialog
+    let window_for_shortcuts = window.clone();
+    shortcuts_button.connect_clicked(move |_| {
+        show_shortcuts_dialog(&window_for_shortcuts);
     });
-    
+
     // --- Active Note Logic ---
     let active_note: Rc<RefCell<Option<ActiveNote>>> = Rc::new(RefCell::new(None));
     
@@ -279,20 +358,13 @@ pub fn build_ui(app: &Application) {
     let status_label_for_select = status_label.clone();
     let word_count_label_for_select = word_count_label.clone();
 
+    // --- Fix the selection handler ---
     list_box.connect_row_selected(move |_listbox, row_opt| {
         // Cancel any pending auto-save
-        let mut clear_auto_save = false;
-        { // Minimal borrow scope
+        {
             let mut active = active_note_for_select.borrow_mut();
-            if let Some(active) = active.as_mut() {
-                if active.auto_save_source_id.is_some() {
-                    clear_auto_save = true;
-                }
-            }
-        }
-        if clear_auto_save {
-            if let Some(active) = active_note_for_select.borrow_mut().as_mut() {
-                if let Some(source_id) = active.auto_save_source_id.take() {
+            if let Some(active_note) = active.as_mut() {
+                if let Some(source_id) = active_note.auto_save_source_id.take() {
                     let _ = source_id.remove();
                 }
             }
@@ -355,110 +427,170 @@ pub fn build_ui(app: &Application) {
         // No need to call update_ui_for_selection here, as header buttons are removed
     });
 
-    // --- Text Buffer Change Logic ---
+    // --- Text Buffer Change Logic with fixed borrowing ---
     let buffer = text_view.buffer();
     let active_note_for_changes = active_note.clone();
     let text_view_for_changes = text_view.clone();
     let status_label_for_changes = status_label.clone();
     let word_count_label_for_changes = word_count_label.clone();
+    let list_box_for_changes = list_box.clone();
+    let window_for_changes = window.clone();
 
     buffer.connect_changed(move |_| {
-        let mut active_note_guard = active_note_for_changes.borrow_mut();
-        if let Some(active) = active_note_guard.as_mut() {
-            active.has_changes = true;
-            let content = text_view_for_changes.buffer().text(
-                &text_view_for_changes.buffer().start_iter(),
-                &text_view_for_changes.buffer().end_iter(),
-                false
-            ).to_string();
-            active.note.content = content.clone();
-
-            let word_count = count_words(&content);
-            let count_text = format!("{} words", word_count);
-            word_count_label_for_changes.set_text(&count_text);
-            status_label_for_changes.set_text("Editing...");
-
-            if let Some(source_id) = active.auto_save_source_id.take() {
-                let _ = source_id.remove();
-            }
-
-            let mut note_to_save = active.note.clone();
-            let active_note_ref = active_note_for_changes.clone();
-            let status_label_ref = status_label_for_changes.clone();
-            let word_count_ref = word_count_label_for_changes.clone(); // Clone for auto-save closure
-
-            active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, clone!(@strong active_note_ref, @strong status_label_ref, @strong word_count_ref => move || {
-                match note_to_save.save() {
-                    Ok(_) => {
-                        let word_count = count_words(&note_to_save.content);
-                        status_label_ref.set_text("Auto-saved");
-                        word_count_ref.set_text(&format!("{} words", word_count)); // Update word count on save
-
-                        if let Some(active_inner) = active_note_ref.borrow_mut().as_mut() {
-                            active_inner.has_changes = false;
-                            active_inner.auto_save_source_id = None;
-                            active_inner.note.modified_time = note_to_save.modified_time;
-                        }
-
-                        let status_label_clone = status_label_ref.clone();
-                        glib::timeout_add_seconds_local(3, move || {
-                            status_label_clone.set_text("Ready");
-                            glib::ControlFlow::Break
-                        });
-                    },
-                    Err(e) => {
-                        eprintln!("Auto-save error: {}", e);
-                        status_label_ref.set_text("Auto-save failed");
-                    }
-                }
-            })));
-        }
-    });
-
-    // --- Keyboard Shortcut (Ctrl+S) ---
-    let key_controller = EventControllerKey::new();
-    let text_view_for_save = text_view.clone();
-    let active_note_for_save = active_note.clone();
-    let window_for_save = window.clone();
-    let status_label_for_save = status_label.clone();
-    let word_count_label_for_save = word_count_label.clone(); // Clone for save
-
-    key_controller.connect_key_pressed(clone!(@strong window_for_save, @strong text_view_for_save, @strong active_note_for_save, @strong status_label_for_save, @strong word_count_label_for_save => move |_, key, _keycode, state| {
-        if key == gtk::gdk::Key::s && state.contains(gtk::gdk::ModifierType::CONTROL_MASK) {
-            let mut active_note_guard = active_note_for_save.borrow_mut();
+        let content = text_view_for_changes.buffer().text(
+            &text_view_for_changes.buffer().start_iter(),
+            &text_view_for_changes.buffer().end_iter(),
+            false
+        ).to_string();
+        
+        // Update word count immediately regardless of active note state
+        let word_count = count_words(&content);
+        let count_text = format!("{} words", word_count);
+        word_count_label_for_changes.set_text(&count_text);
+        
+        // Separate mutable borrow scope to avoid conflicts
+        let mut update_title = false;
+        let mut new_title = String::new();
+        let mut need_refresh = false;
+        
+        {
+            let mut active_note_guard = active_note_for_changes.borrow_mut();
             if let Some(active) = active_note_guard.as_mut() {
+                active.has_changes = true;
+                active.note.content = content.clone();
+                status_label_for_changes.set_text("Editing...");
+                
+                // Cancel any existing auto-save
                 if let Some(source_id) = active.auto_save_source_id.take() {
                     let _ = source_id.remove();
                 }
-                let buffer = text_view_for_save.buffer();
-                let content = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
-                active.note.content = content.clone(); // Use cloned content
-
-                match active.note.save() {
-                    Ok(_) => {
-                        active.has_changes = false;
-                        let word_count = count_words(&active.note.content);
-                        status_label_for_save.set_text("Saved"); // Simpler status
-                        word_count_label_for_save.set_text(&format!("{} words", word_count)); // Update word count
-
-                        let status_label_clone = status_label_for_save.clone();
-                        glib::timeout_add_seconds_local(3, move || {
-                            status_label_clone.set_text("Ready");
-                            glib::ControlFlow::Break
-                        });
-                    },
-                    Err(e) => {
-                        eprintln!("Error saving note: {}", e);
-                        show_error_dialog(&window_for_save, "Save Error", &format!("Failed to save note: {}", e));
+                
+                // Check for title update (outside active auto-save code)
+                if active.note.title.starts_with("Note 20") { // Using direct check instead of has_default_title
+                    // Simple title generation logic inline
+                    if let Some(first_line) = content.lines().find(|line| !line.trim().is_empty()) {
+                        let title_text = first_line.trim();
+                        if title_text.len() >= 3 {
+                            let new_potential_title = if title_text.len() > 50 {
+                                format!("{}...", &title_text[0..47])
+                            } else {
+                                title_text.to_string()
+                            };
+                            
+                            if new_potential_title != active.title && !new_potential_title.is_empty() {
+                                update_title = true;
+                                new_title = new_potential_title;
+                            }
+                        }
+                    }
+                }
+                
+                // Schedule a new auto-save
+                let mut note_to_save = active.note.clone();
+                let active_note_ref = active_note_for_changes.clone();
+                let status_label_ref = status_label_for_changes.clone();
+                
+                active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, move || {
+                    match note_to_save.save() {
+                        Ok(_) => {
+                            status_label_ref.set_text("Auto-saved");
+                            
+                            // Modify active note in a separate borrow scope
+                            if let Ok(mut guard) = active_note_ref.try_borrow_mut() {
+                                if let Some(active_inner) = guard.as_mut() {
+                                    active_inner.has_changes = false;
+                                    active_inner.auto_save_source_id = None;
+                                    active_inner.note.modified_time = note_to_save.modified_time;
+                                }
+                            }
+                            
+                            let status_label_clone = status_label_ref.clone();
+                            glib::timeout_add_seconds_local(3, move || {
+                                status_label_clone.set_text("Ready");
+                                glib::ControlFlow::Break
+                            });
+                        },
+                        Err(e) => {
+                            eprintln!("Auto-save error: {}", e);
+                            status_label_ref.set_text("Auto-save failed");
+                        }
+                    }
+                }));
+            }
+        }
+        
+        // Handle title update outside the borrow scope if needed
+        if update_title {
+            // Get a new borrow to update the title
+            if let Ok(mut active_guard) = active_note_for_changes.try_borrow_mut() {
+                if let Some(active) = active_guard.as_mut() {
+                    if let Ok(()) = active.note.rename(&new_title) {
+                        active.title = new_title.clone();
+                        window_for_changes.set_title(Some(&format!("{} - {}", APP_NAME, new_title)));
+                        need_refresh = true;
                     }
                 }
             }
-            return glib::Propagation::Stop;
+            
+            // Refresh list if title was updated
+            if need_refresh {
+                // Use a timeout to delay the refresh slightly
+                let list_box_clone = list_box_for_changes.clone();
+                let title_clone = new_title.clone();
+                glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+                    refresh_note_list(&list_box_clone);
+                    select_note_by_title(&list_box_clone, &title_clone);
+                    glib::ControlFlow::Break
+                });
+            }
         }
-        glib::Propagation::Proceed
-    }));
-    window.add_controller(key_controller);
+    });
+
+    // --- Global Keyboard Shortcuts ---
+    let key_controller = EventControllerKey::new();
+    let fullscreen_button_for_key = fullscreen_button.clone();
+    let theme_toggle_for_key = theme_toggle_button.clone();
+    let sidebar_toggle_for_key = sidebar_toggle.clone();
+    let window_for_key = window.clone();
+    let shortcuts_button_for_key = shortcuts_button.clone();
     
+    key_controller.connect_key_pressed(move |_, key, _keycode, state| {
+        // F11 for fullscreen
+        if key == Key::F11 {
+            fullscreen_button_for_key.emit_clicked();
+            return Propagation::Stop;
+        }
+        
+        // Ctrl+T for theme toggle
+        if key == Key::t && state.contains(ModifierType::CONTROL_MASK) {
+            theme_toggle_for_key.emit_clicked();
+            return Propagation::Stop;
+        }
+        
+        // Ctrl+B for sidebar toggle
+        if key == Key::b && state.contains(ModifierType::CONTROL_MASK) {
+            sidebar_toggle_for_key.emit_clicked();
+            return Propagation::Stop;
+        }
+        
+        // Ctrl+K for keyboard shortcuts dialog
+        if key == Key::k && state.contains(ModifierType::CONTROL_MASK) {
+            shortcuts_button_for_key.emit_clicked();
+            return Propagation::Stop;
+        }
+        
+        // Escape to exit fullscreen
+        if key == Key::Escape && window_for_key.is_fullscreen() {
+            window_for_key.unfullscreen();
+            fullscreen_button_for_key.set_icon_name("view-fullscreen-symbolic");
+            return Propagation::Stop;
+        }
+        
+        Propagation::Proceed
+    });
+    
+    window.add_controller(key_controller.clone());
+
     // --- New Note Button Logic ---
     let list_box_for_new = list_box.clone();
     let active_note_for_new = active_note.clone();
@@ -510,10 +642,10 @@ pub fn build_ui(app: &Application) {
 
     // Remove rename_button_ref and delete_button_ref connections as they are moved to rows
 
-    // Add panes to the Paned widget
-    paned.set_start_child(Some(&left_pane)); // Use the original paned here
-    paned.set_end_child(Some(&right_pane)); // Use the original paned here
-
+    // Add panes to the main container
+    paned.set_start_child(Some(&left_pane));
+    paned.set_end_child(Some(&right_pane));
+    
     // Set the Overlay as the child of the window
     window.set_child(Some(&main_overlay));
 
@@ -936,4 +1068,117 @@ fn select_note_by_title(list_box: &ListBox, title_to_find: &str) {
 
         row_index += 1;
     }
+}
+
+/// Show keyboard shortcuts dialog
+fn show_shortcuts_dialog(parent: &ApplicationWindow) {
+    // Create a dialog window
+    let dialog = ApplicationWindow::builder()
+        .transient_for(parent)
+        .modal(true)
+        .title("Keyboard Shortcuts")
+        .default_width(400)
+        .default_height(400)
+        .css_classes(vec!["shortcuts-dialog"])
+        .build();
+    
+    // Create a scrollable container
+    let scrolled_window = ScrolledWindow::new();
+    
+    // Create the main box for content
+    let content_box = Box::builder()
+        .orientation(Orientation::Vertical)
+        .margin_start(20)
+        .margin_end(20)
+        .margin_top(20)
+        .margin_bottom(20)
+        .spacing(10)
+        .build();
+    
+    // Add title
+    let title_label = Label::builder()
+        .label("Keyboard Shortcuts")
+        .css_classes(vec!["shortcuts-title"])
+        .build();
+    content_box.append(&title_label);
+    
+    // Create sections
+    add_shortcut_section(&content_box, "General", &[
+        ("Ctrl+K", "Show keyboard shortcuts"),
+        ("Ctrl+T", "Toggle light/dark theme"),
+        ("Ctrl+B", "Toggle sidebar"),
+        ("F11", "Toggle fullscreen mode"),
+        ("Escape", "Exit fullscreen")
+    ]);
+    
+    add_shortcut_section(&content_box, "Editing", &[
+        ("Ctrl+S", "Save current note"),
+        ("Ctrl+N", "Create new note"),
+        ("Ctrl+D", "Delete selected note"),
+        ("Ctrl+R", "Rename selected note")
+    ]);
+    
+    // Add a close button
+    let button_box = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .halign(gtk::Align::End)
+        .margin_top(20)
+        .build();
+        
+    let close_button = Button::builder()
+        .label("Close")
+        .build();
+        
+    button_box.append(&close_button);
+    content_box.append(&button_box);
+    
+    // Connect close button
+    let dialog_clone = dialog.clone();
+    close_button.connect_clicked(move |_| {
+        dialog_clone.close();
+    });
+    
+    // Set content
+    scrolled_window.set_child(Some(&content_box));
+    dialog.set_child(Some(&scrolled_window));
+    
+    // Show dialog
+    dialog.present();
+}
+
+/// Helper to add a section of shortcuts to the dialog
+fn add_shortcut_section(container: &Box, title: &str, shortcuts: &[(&str, &str)]) {
+    // Add section title
+    let section_label = Label::builder()
+        .label(title)
+        .xalign(0.0)
+        .css_classes(vec!["shortcuts-section"])
+        .margin_top(10)
+        .build();
+    container.append(&section_label);
+    
+    // Add shortcuts grid
+    let grid = gtk::Grid::builder()
+        .row_spacing(8)
+        .column_spacing(20)
+        .margin_start(20)
+        .build();
+    
+    for (i, (key, description)) in shortcuts.iter().enumerate() {
+        let key_label = Label::builder()
+            .label(*key) // Dereference to solve the type issue
+            .xalign(0.0)
+            .css_classes(vec!["shortcut-key"])
+            .build();
+            
+        let desc_label = Label::builder()
+            .label(*description) // Dereference to solve the type issue
+            .xalign(0.0)
+            .build();
+            
+        grid.attach(&key_label, 0, i as i32, 1, 1);
+        grid.attach(&desc_label, 1, i as i32, 1, 1);
+    }
+    
+    container.append(&grid);
 }

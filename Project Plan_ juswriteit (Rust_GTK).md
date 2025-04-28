@@ -1,4 +1,4 @@
-# **Project Plan: juswriteit**
+# **Project Plan: Penscript**
 
 Version: 1.0 (Initial Plan)
 Date: 2025-04-25
@@ -57,12 +57,14 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
      * [x] Implemented centered "typewriter" style editing area with padding
      * [x] Added theme toggle button with appropriate icons
      * [x] Improved sidebar with note previews and better spacing
-     * [x] ~~Enhanced header bar with symbolic icons instead of text buttons~~ (Removed header bar)
-     * [x] Implemented frameless window design
-     * [x] Added overlay controls (fullscreen, theme, sidebar toggle)
+     * [x] Implemented frameless window design with auto-hiding window controls
+     * [x] Added overlay controls at bottom of window (fullscreen, theme, sidebar, shortcuts)
+     * [x] Added app branding watermark at bottom center
      * [x] Added hover controls (rename, delete) to sidebar notes
      * [x] Moved "New Note" button to sidebar header
      * [x] Implemented logic to reuse/rename empty notes
+     * [x] Added keyboard shortcuts for all major functions
+     * [x] Added keyboard shortcuts reference dialog (Ctrl+K)
   - [ ] **Editor Improvements:**
      * [ ] Basic font selection/size options (maybe via Gtk::FontButton in a settings popover).
      * [ ] Consider basic Markdown syntax highlighting (could be complex, might use an external crate if available or keep it simple).
