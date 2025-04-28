@@ -1,275 +1,197 @@
-/* juswriteit - Minimalist writing app styling */
+/* Base Application Styles */
+window {
+    transition-property: background-color, color;
+    transition-duration: 200ms;
+}
 
-/* Color variables - updated based on the screenshot */
-@define-color bg-dark #222b3d; /* Darker blue from screenshot */
-@define-color text-dark #f7fafc;
-@define-color sidebar-dark #1a212f; /* Slightly darker for sidebar */
-@define-color accent-dark #4facfe; /* More vibrant blue accent */
-@define-color dim-dark rgba(247, 250, 252, 0.6);
+.transition {
+    transition-property: background-color, color;
+    transition-duration: 200ms;
+}
 
-@define-color bg-light #fcf9f4;
-@define-color text-light #1a202c;
-@define-color sidebar-light #edf2f7;
-@define-color accent-light #0369a1;
-@define-color dim-light rgba(26, 32, 44, 0.6);
-
-/* === Dark mode styles === */
+/* Dark Mode (Default) */
 .dark-mode {
-    background-color: @bg-dark;
-    color: @text-dark;
+    background-color: #1e1e1e;
+    color: #f0f0f0;
 }
 
-/* Sidebar */
+.dark-mode .top-bar {
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #3d3d3d;
+}
+
 .dark-mode .sidebar {
-    background-color: @sidebar-dark;
-    border-right: none;
+    background-color: #252525;
+    border-right: 1px solid #3d3d3d;
 }
 
-.dark-mode .sidebar-header {
-    color: rgba(247, 250, 252, 0.5);
-    background-color: @sidebar-dark;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+.dark-mode .sidebar-header-box {
+    background-color: #252525;
+    border-bottom: 1px solid #333333;
 }
 
-.dark-mode .notes-list {
-    background-color: @sidebar-dark;
+.dark-mode .bottom-bar {
+    background-color: #1e1e1e;
+    border-top: 1px solid #3d3d3d;
 }
 
-.dark-mode .note-row {
-    background-color: transparent;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+.dark-mode .editor-area {
+    background-color: #1e1e1e;
 }
 
-.dark-mode .note-row:selected {
-    background-color: rgba(56, 189, 248, 0.15);
+.dark-mode .editor {
+    background-color: #1e1e1e;
+    color: #f0f0f0;
 }
 
-.dark-mode .note-row:hover:not(:selected) {
-    background-color: rgba(56, 189, 248, 0.05);
+.dark-mode .editor-scroll {
+    background-color: #1e1e1e;
 }
 
-.dark-mode .note-title {
-    color: @text-dark;
+/* Light Mode */
+.light-mode {
+    background-color: #ffffff;
+    color: #333333;
 }
 
-.dark-mode .note-date,
-.dark-mode .note-preview {
-    color: @dim-dark;
+.light-mode .top-bar {
+    background-color: #ffffff;
+    color: #333333;
+    border-bottom: 1px solid #e0e0e0;
 }
 
-/* Header bar */
-.dark-mode headerbar {
-    background-color: @sidebar-dark;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+.light-mode .sidebar {
+    background-color: #f2f2f2;
+    color: #333333;
+    border-right: 1px solid #e0e0e0;
+}
+
+.light-mode .sidebar-header-box {
+    background-color: #f2f2f2;
+    color: #333333;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 8px;
+}
+
+.light-mode .bottom-bar {
+    background-color: #ffffff;
+    color: #333333;
+    border-top: 1px solid #e0e0e0;
+}
+
+.light-mode .status-text,
+.light-mode .word-count,
+.light-mode .app-logo {
+    color: #333333;
+}
+
+.light-mode .overlay-button {
+    color: #555555;
+    background: none;
+    border: none;
     box-shadow: none;
 }
 
-.dark-mode .header-button {
-    color: @text-dark;
-    background: none;
+.light-mode .overlay-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+.light-mode .editor-area {
+    background-color: #ffffff;
+}
+
+.light-mode .editor {
+    background-color: #ffffff;
+    color: #333333;
+}
+
+.light-mode .editor-scroll {
+    background-color: #ffffff;
+}
+
+/* Make sure the notes list has proper background in light mode */
+.light-mode .notes-list {
+    background-color: #f2f2f2;
+}
+
+.light-mode .note-row {
+    background-color: #f2f2f2;
+}
+
+.light-mode .note-row:hover {
+    background-color: #e5e5e5;
+}
+
+.light-mode .note-row:selected {
+    background-color: #d8d8d8;
+}
+
+/* Clean minimalistic sidebar */
+.clean-list row {
+    padding: 0;
     border: none;
 }
 
-.dark-mode .header-button:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Editor area */
-.dark-mode .editor-area {
-    background-color: @bg-dark;
-}
-
-.dark-mode textview,
-.dark-mode textview text {
-    background-color: @bg-dark;
-    color: @text-dark;
-    caret-color: @accent-dark;
-}
-
-/* === Bottom area alignment: Status bar and control bar === */
-.status-bar {
-    border-top: none; /* Remove top border for seamless look */
-    padding: 8px 12px; /* Match the control bar padding */
-    height: 38px; /* Fixed height to match control bar */
-    margin: 0; /* Remove any margins */
-    box-sizing: border-box; /* Include padding in height calculation */
-}
-
-.status-text, .word-count {
-    margin-top: 2px; /* Fine-tune vertical alignment */
-}
-
-/* Control bar alignment - ensure same height/positioning as status bar */
-.control-bar {
-    background: transparent;
-    transition: opacity 0.3s ease;
-    padding: 8px 12px; /* Match status bar padding */
-    margin: 0 0 0 0; /* Remove any margins, especially bottom margin */
-    height: 38px; /* Same height as status bar */
-    box-sizing: border-box;
-    position: absolute; /* Position over the status bar */
-    bottom: 0; /* Align to bottom */
-    left: 0;
-    right: 0;
-    z-index: 1; /* Ensure it appears above the status bar */
-}
-
-.app-logo {
-    font-family: "Roboto Slab", "Noto Serif", serif;
-    font-size: 12px;
-    font-weight: 300;
-    opacity: 0.5; /* Slightly more visible */
-    letter-spacing: 3px;
-    user-select: none;
-    margin-bottom: 0; /* Remove any margins */
-}
-
-.dark-mode .app-logo {
-    color: rgba(247, 250, 252, 0.8);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.light-mode .app-logo {
-    color: rgba(26, 32, 44, 0.6);
-}
-
-/* Make overlay buttons more visible and matching the screenshot */
-.overlay-button {
-    padding: 4px; /* Slightly smaller padding */
-    min-height: 28px; /* Slightly reduced height */
-    min-width: 28px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-    margin: 0 2px;
-}
-
-.dark-mode .overlay-button {
-    color: rgba(247, 250, 252, 0.9);
-    background-color: rgba(26, 32, 44, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark-mode .overlay-button:hover {
-    background-color: rgba(79, 172, 254, 0.2); /* Accent color with transparency */
-    border-color: rgba(79, 172, 254, 0.4);
-}
-
-/* === Shortcuts Dialog === */
-.shortcuts-dialog {
-    border-radius: 6px;
-}
-
-.shortcuts-title {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 12px;
-}
-
-.shortcuts-section {
-    font-size: 14px;
-    font-weight: bold;
-    margin-top: 12px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.dark-mode .shortcuts-section {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.shortcut-key {
-    font-family: "JetBrains Mono", monospace;
-    background-color: rgba(0, 0, 0, 0.05);
-    border-radius: 4px;
-    padding: 3px 6px;
-    font-size: 12px;
-}
-
-.dark-mode .shortcut-key {
+.dark-mode .clean-list row:selected {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Clean up transitions */
-.transition * {
-    transition-property: background-color, color, opacity, transform;
-    transition-duration: 0.3s;
-    transition-timing-function: ease;
+.light-mode .clean-list row:selected {
+    background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Fullscreen mode adjustments */
-.fullscreen-mode .top-bar,
-.fullscreen-mode .app-logo {
-    opacity: 0;
+.dark-mode .sidebar-header-box {
+    background-color: #252525;
+    border-bottom: 1px solid #333333;
 }
 
-.fullscreen-mode:hover .top-bar,
-.fullscreen-mode:hover .app-logo {
-    opacity: 0.5;
+.light-mode .sidebar-header-box {
+    background-color: #f2f2f2;
+    border-bottom: 1px solid #e0e0e0;
 }
 
-/* === Editor styling enhancements - based on screenshot === */
-.editor {
-    padding: 0;
+.sidebar-header {
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 1px;
 }
 
-textview {
-    font-family: "JetBrains Mono", "SF Mono", monospace;
-    font-size: 15px; /* Slightly smaller to match screenshot */
-    line-height: 1.5;
-}
-
-textview text {
-    margin-top: 15%; /* Adjusted based on screenshot */
-    margin-left: 20%;
-    margin-right: 20%;
-}
-
-.dark-mode textview,
-.dark-mode textview text {
-    background-color: @bg-dark;
-    color: rgba(247, 250, 252, 0.9); /* Slightly off-white for better readability */
-    caret-color: @accent-dark;
-}
-
-.light-mode textview,
-.light-mode textview text {
-    background-color: @bg-light;
-    color: @text-light;
-    caret-color: @accent-light;
-}
-
-/* Enhance text editor focus */
-textview:focus {
-    outline: none;
-}
-
-.dark-mode textview:focus {
-    caret-color: @accent-dark;
-}
-
-.light-mode textview:focus {
-    caret-color: @accent-light;
-}
-
-/* Ensure the controls don't interfere with text editing */
-textview selection {
-    background-color: rgba(56, 189, 248, 0.4);
+/* Truly minimalistic button styling */
+.icon-only-button {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 4px;
+    margin: 0;
+    min-width: 24px;
+    min-height: 24px;
     color: inherit;
+    opacity: 0.8;
 }
 
-.dark-mode textview selection {
-    background-color: rgba(56, 189, 248, 0.4);
+.icon-only-button:hover {
+    background: none;
+    opacity: 1;
 }
 
-.light-mode textview selection {
-    background-color: rgba(2, 132, 199, 0.3);
+.dark-mode .icon-only-button:hover {
+    color: #ffffff;
 }
 
-/* Improve cursor visibility */
-.editor-area:focus-within {
-    outline: none;
+.light-mode .icon-only-button:hover {
+    color: #000000;
 }
 
-/* Make sure the editor is accessible with keyboard focus */
-.editor-area {
-    transition: background-color 0.3s ease;
+/* Make top and bottom bars match editor background */
+.dark-mode .top-bar,
+.dark-mode .bottom-bar {
+    background-color: #1e1e1e;
+    border-color: #3d3d3d;
+}
+
+.light-mode .top-bar,
+.light-mode .bottom-bar {
+    background-color: #ffffff;
+    border-color: #e0e0e0;
 }

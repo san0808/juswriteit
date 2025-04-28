@@ -95,24 +95,29 @@ pub fn build_ui(app: &Application) {
         .build();
 
     // --- Sidebar Setup ---
-    let sidebar_header_box = Box::builder() // Renamed variable
+    // Update sidebar header styling
+    let sidebar_header_box = Box::builder()
         .orientation(Orientation::Horizontal)
         .css_classes(vec!["sidebar-header-box"])
+        .margin_bottom(6)
         .build();
         
     let notes_label = Label::builder()
         .label("NOTES")
         .xalign(0.0)
         .hexpand(true)
-        .margin_start(12) // Add left margin for padding from edge
+        .margin_start(12)
+        .margin_top(6)
+        .margin_bottom(6)
         .css_classes(vec!["sidebar-header"])
         .build();
     
-    // Add "New Note" button in sidebar header
+    // Add "New Note" button with minimalist styling
     let new_note_button = Button::builder()
         .icon_name("list-add-symbolic")
         .tooltip_text("New Note")
-        .css_classes(vec!["note-control-button", "new-note-button"])
+        .css_classes(vec!["note-control-button"])
+        .margin_end(8)
         .build();
         
     sidebar_header_box.append(&notes_label);
@@ -210,8 +215,8 @@ pub fn build_ui(app: &Application) {
         .margin_end(10)
         .css_classes(vec!["word-count"])
         .build();
-        
-    // Create a unified bottom bar (combining status and controls)
+
+    // Modify the bottom bar to match editor color
     let bottom_bar = Box::builder()
         .orientation(Orientation::Horizontal)
         .css_classes(vec!["bottom-bar"])
@@ -220,7 +225,7 @@ pub fn build_ui(app: &Application) {
         .margin_start(0)
         .margin_end(0)
         .spacing(8)
-        .height_request(38) // Set fixed height for better appearance
+        .height_request(38)
         .build();
     
     // Add buttons to controls container
@@ -231,32 +236,32 @@ pub fn build_ui(app: &Application) {
         .hexpand(false)
         .build();
     
-    // Create keyboard shortcuts button
+    // Create keyboard shortcuts button - remove button styling
     let shortcuts_button = Button::builder()
         .icon_name("input-keyboard-symbolic")
         .tooltip_text("Keyboard Shortcuts (Ctrl+K)")
-        .css_classes(vec!["overlay-button", "shortcuts-button"])
+        .css_classes(vec!["overlay-button"])
         .build();
     
-    // Create sidebar toggle button
+    // Create sidebar toggle button - remove button styling
     let sidebar_toggle = Button::builder()
         .icon_name("view-sidebar-start-symbolic")
         .tooltip_text("Toggle Sidebar (Ctrl+B)")
-        .css_classes(vec!["overlay-button", "sidebar-toggle"])
+        .css_classes(vec!["overlay-button"])
         .build();
     
-    // Create theme toggle button
+    // Create theme toggle button - remove button styling
     let theme_toggle_button = Button::builder()
         .icon_name("weather-clear-night-symbolic")
         .tooltip_text("Toggle Light/Dark Theme (Ctrl+T)")
-        .css_classes(vec!["overlay-button", "theme-toggle"])
+        .css_classes(vec!["overlay-button"])
         .build();
     
-    // Create fullscreen toggle button
+    // Create fullscreen toggle button - remove button styling
     let fullscreen_button = Button::builder()
         .icon_name("view-fullscreen-symbolic")
         .tooltip_text("Toggle Fullscreen Mode (F11)")
-        .css_classes(vec!["overlay-button", "fullscreen-button"])
+        .css_classes(vec!["overlay-button"])
         .build();
     
     // Add buttons to controls container
@@ -315,14 +320,44 @@ pub fn build_ui(app: &Application) {
     
     // Theme toggle functionality
     let window_for_theme = window.clone();
+    let bottom_bar_for_theme = bottom_bar.clone();
+    let top_bar_for_theme = top_bar.clone();
+    let left_pane_for_theme = left_pane.clone();
+    let right_pane_for_theme = right_pane.clone(); // Add right pane
+    let text_view_for_theme = text_view.clone(); // Add text view
+    let editor_scrolled_window_for_theme = editor_scrolled_window.clone(); // Add scrolled window
+    let controls_container_for_theme = controls_container.clone();
+    
     theme_toggle_button.connect_clicked(move |button| {
         if window_for_theme.has_css_class("dark-mode") {
+            // Switch to light mode
             window_for_theme.remove_css_class("dark-mode");
             window_for_theme.add_css_class("light-mode");
+            
+            // Apply light mode to all major UI components
+            bottom_bar_for_theme.add_css_class("light-mode");
+            top_bar_for_theme.add_css_class("light-mode");
+            left_pane_for_theme.add_css_class("light-mode");
+            right_pane_for_theme.add_css_class("light-mode"); // Add light mode to right pane
+            text_view_for_theme.add_css_class("light-mode"); // Add light mode to text view
+            editor_scrolled_window_for_theme.add_css_class("light-mode"); // Add light mode to editor scrolled window
+            controls_container_for_theme.add_css_class("light-mode");
+            
             button.set_icon_name("weather-clear-symbolic");
         } else {
+            // Switch to dark mode
             window_for_theme.remove_css_class("light-mode");
             window_for_theme.add_css_class("dark-mode");
+            
+            // Remove light mode from all major UI components
+            bottom_bar_for_theme.remove_css_class("light-mode");
+            top_bar_for_theme.remove_css_class("light-mode");
+            left_pane_for_theme.remove_css_class("light-mode");
+            right_pane_for_theme.remove_css_class("light-mode"); // Remove light mode from right pane
+            text_view_for_theme.remove_css_class("light-mode"); // Remove light mode from text view
+            editor_scrolled_window_for_theme.remove_css_class("light-mode"); // Remove light mode from editor scrolled window
+            controls_container_for_theme.remove_css_class("light-mode");
+            
             button.set_icon_name("weather-clear-night-symbolic");
         }
     });
@@ -387,6 +422,7 @@ pub fn build_ui(app: &Application) {
                 let notes_dir = crate::utils::get_notes_dir();
                 let file_path = notes_dir.join(format!("{}.md", title));
 
+                // When loading a note, update the window title properly
                 match Note::load(&file_path) {
                     Ok(note) => {
                         text_view_for_select.buffer().set_text(&note.content);
@@ -397,7 +433,6 @@ pub fn build_ui(app: &Application) {
                             auto_save_source_id: None,
                             note: note.clone(),
                         });
-                        // When loading a note, update the window title to match the app name
                         window_for_select.set_title(Some(&format!("{} - {}", APP_NAME, title)));
                         let word_count = count_words(&note.content);
                         let count_text = format!("{} words", word_count);
@@ -407,7 +442,7 @@ pub fn build_ui(app: &Application) {
                     Err(e) => {
                         eprintln!("Error loading note content: {}", e);
                         text_view_for_select.buffer().set_text("");
-                        window_for_select.set_title(Some("JustWrite"));
+                        window_for_select.set_title(Some(&format!("{}", APP_NAME))); // Just use app name
                         status_label_for_select.set_text("Error loading note");
                         *active_note_for_select.borrow_mut() = None;
                     }
@@ -629,7 +664,7 @@ pub fn build_ui(app: &Application) {
                     note: note.clone(),
                 });
                 
-                window_for_new.set_title(Some(&format!("{} - JustWrite", note.title)));
+                window_for_new.set_title(Some(&format!("{} - {}", APP_NAME, note.title)));
                 let word_count = count_words(&note.content);
                 status_label_for_new.set_text("Ready");
                 word_count_label_for_new.set_text(&format!("{} words", word_count));
@@ -714,9 +749,9 @@ fn refresh_note_list(list_box: &ListBox) {
                     .orientation(Orientation::Vertical)
                     .spacing(2)
                     .margin_start(12)
-                    .margin_end(12)
-                    .margin_top(8)
-                    .margin_bottom(8)
+                    .margin_end(6) // Reduce right margin for a cleaner look
+                    .margin_top(6)
+                    .margin_bottom(6)
                     .hexpand(true)
                     .css_classes(vec!["note-content-box"])
                     .build();
@@ -766,28 +801,28 @@ fn refresh_note_list(list_box: &ListBox) {
                 row_content_box.append(&date_label);
                 row_content_box.append(&preview_label);
 
-                // Create control buttons box (edit, delete) - initially hidden via CSS
+                // Style the control box
                 let control_box = Box::builder()
                     .orientation(Orientation::Horizontal)
                     .valign(gtk::Align::Center)
                     .halign(gtk::Align::End)
-                    .spacing(4)
-                    .margin_end(8)
-                    .css_classes(vec!["note-controls"]) // CSS handles visibility
+                    .spacing(2) // Reduced spacing
+                    .margin_end(6) // Smaller margin
+                    .css_classes(vec!["note-controls"])
                     .build();
 
-                // Edit button
+                // Edit button - minimal style, just the icon
                 let edit_button = Button::builder()
                     .icon_name("document-edit-symbolic")
                     .tooltip_text("Rename Note")
-                    .css_classes(vec!["note-control-button"])
+                    .css_classes(vec!["icon-button", "note-control-button"])
                     .build();
 
-                // Delete button
+                // Delete button - minimal style, just the icon
                 let delete_button = Button::builder()
                     .icon_name("user-trash-symbolic")
                     .tooltip_text("Delete Note")
-                    .css_classes(vec!["note-control-button"])
+                    .css_classes(vec!["icon-button", "note-control-button"])
                     .build();
 
                 // Add buttons to the control box
