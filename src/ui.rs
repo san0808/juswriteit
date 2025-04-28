@@ -40,9 +40,10 @@ impl Clone for ActiveNote {
 const AUTO_SAVE_DELAY_MS: u32 = 2000; // 2 seconds
 
 // Add app name constant
-const APP_NAME: &str = "Penscript"; // New name suggestion - simple, memorable, relates to writing
+const APP_NAME: &str = "Penscript";
 const INITIAL_WINDOW_WIDTH: i32 = 1000;
-const INITIAL_SIDEBAR_WIDTH: i32 = (INITIAL_WINDOW_WIDTH as f32 * 0.25) as i32; // Calculate 25%
+const INITIAL_WINDOW_HEIGHT: i32 = 700;
+const INITIAL_SIDEBAR_WIDTH: i32 = 250; // Fixed width for a clean look
 
 /// Build the user interface
 pub fn build_ui(app: &Application) {
@@ -53,8 +54,8 @@ pub fn build_ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
         .title(APP_NAME)
-        .default_width(INITIAL_WINDOW_WIDTH) // Use constant
-        .default_height(700)
+        .default_width(INITIAL_WINDOW_WIDTH)
+        .default_height(INITIAL_WINDOW_HEIGHT)
         .css_classes(vec!["dark-mode", "transition"])
         .decorated(false) // Make window frameless
         .build();
@@ -181,6 +182,15 @@ pub fn build_ui(app: &Application) {
     editor_scrolled_window.set_child(Some(&text_view));
 
     // --- Status Bar Setup ---
+    let status_box = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .css_classes(vec!["status-bar"])
+        .margin_top(0)
+        .margin_bottom(0)
+        .margin_start(0)
+        .margin_end(0)
+        .build();
+    
     let status_label = Label::builder()
         .label("Ready")
         .xalign(0.0)
@@ -194,17 +204,11 @@ pub fn build_ui(app: &Application) {
         .css_classes(vec!["word-count"])
         .build();
     
-    let status_box = Box::builder()
-        .orientation(Orientation::Horizontal)
-        .css_classes(vec!["status-bar"])
-        .build();
-    
     status_box.append(&status_label);
     status_box.append(&word_count_label);
     
-    // Add editor components to right pane
+    // Add editor components to right pane - DON'T include status box here
     right_pane.append(&editor_scrolled_window);
-    right_pane.append(&status_box);
 
     // --- Create Control Bar at Bottom ---
     let control_bar = Box::builder()
@@ -218,7 +222,7 @@ pub fn build_ui(app: &Application) {
         .spacing(8)
         .build();
     
-    // Create app logo/watermark
+    // Improve app logo presentation
     let app_logo = Label::builder()
         .label(APP_NAME)
         .css_classes(vec!["app-logo"])
@@ -271,7 +275,7 @@ pub fn build_ui(app: &Application) {
     control_bar.append(&app_logo);
     control_bar.append(&controls_container);
     
-    // --- Main Layout Assembly ---
+    // --- Main Layout Assembly with proper bottom overlay ---
     // Create main vertical box to hold all components
     let main_box = Box::builder()
         .orientation(Orientation::Vertical)
@@ -285,10 +289,13 @@ pub fn build_ui(app: &Application) {
     // Add paned container (main content)
     main_box.append(&paned);
     
+    // Add status bar at the bottom
+    main_box.append(&status_box);
+    
     // Set main box as the overlay child
     main_overlay.set_child(Some(&main_box));
     
-    // Add control bar as an overlay
+    // Add control bar as an overlay - it will sit above the status bar
     main_overlay.add_overlay(&control_bar);
     
     // Set the overlay as the window child
@@ -394,7 +401,8 @@ pub fn build_ui(app: &Application) {
                             auto_save_source_id: None,
                             note: note.clone(),
                         });
-                        window_for_select.set_title(Some(&format!("{} - JustWrite", title)));
+                        // When loading a note, update the window title to match the app name
+                        window_for_select.set_title(Some(&format!("{} - {}", APP_NAME, title)));
                         let word_count = count_words(&note.content);
                         let count_text = format!("{} words", word_count);
                         status_label_for_select.set_text("Ready"); // Reset status

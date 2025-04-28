@@ -1,10 +1,10 @@
 /* juswriteit - Minimalist writing app styling */
 
-/* Color variables */
-@define-color bg-dark #2d3748;
+/* Color variables - updated based on the screenshot */
+@define-color bg-dark #222b3d; /* Darker blue from screenshot */
 @define-color text-dark #f7fafc;
-@define-color sidebar-dark #1a202c;
-@define-color accent-dark #38bdf8;
+@define-color sidebar-dark #1a212f; /* Slightly darker for sidebar */
+@define-color accent-dark #4facfe; /* More vibrant blue accent */
 @define-color dim-dark rgba(247, 250, 252, 0.6);
 
 @define-color bg-light #fcf9f4;
@@ -86,239 +86,72 @@
     caret-color: @accent-dark;
 }
 
-/* Status bar */
-.dark-mode .status-bar {
-    background-color: @sidebar-dark;
-    color: @dim-dark;
+/* === Bottom area alignment: Status bar and control bar === */
+.status-bar {
+    border-top: none; /* Remove top border for seamless look */
+    padding: 8px 12px; /* Match the control bar padding */
+    height: 38px; /* Fixed height to match control bar */
+    margin: 0; /* Remove any margins */
+    box-sizing: border-box; /* Include padding in height calculation */
 }
 
-.dark-mode .word-count {
-    color: @dim-dark;
+.status-text, .word-count {
+    margin-top: 2px; /* Fine-tune vertical alignment */
 }
 
-/* === Light mode styles === */
-.light-mode {
-    background-color: @bg-light;
-    color: @text-light;
+/* Control bar alignment - ensure same height/positioning as status bar */
+.control-bar {
+    background: transparent;
+    transition: opacity 0.3s ease;
+    padding: 8px 12px; /* Match status bar padding */
+    margin: 0 0 0 0; /* Remove any margins, especially bottom margin */
+    height: 38px; /* Same height as status bar */
+    box-sizing: border-box;
+    position: absolute; /* Position over the status bar */
+    bottom: 0; /* Align to bottom */
+    left: 0;
+    right: 0;
+    z-index: 1; /* Ensure it appears above the status bar */
 }
 
-/* Sidebar */
-.light-mode .sidebar {
-    background-color: @sidebar-light;
-    border-right: none;
+.app-logo {
+    font-family: "Roboto Slab", "Noto Serif", serif;
+    font-size: 12px;
+    font-weight: 300;
+    opacity: 0.5; /* Slightly more visible */
+    letter-spacing: 3px;
+    user-select: none;
+    margin-bottom: 0; /* Remove any margins */
 }
 
-.light-mode .sidebar-header {
-    color: rgba(26, 32, 44, 0.5);
-    background-color: @sidebar-light;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+.dark-mode .app-logo {
+    color: rgba(247, 250, 252, 0.8);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.light-mode .notes-list {
-    background-color: @sidebar-light;
+.light-mode .app-logo {
+    color: rgba(26, 32, 44, 0.6);
 }
 
-.light-mode .note-row {
-    background-color: transparent;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.light-mode .note-row:selected {
-    background-color: rgba(2, 132, 199, 0.1);
-}
-
-.light-mode .note-row:hover:not(:selected) {
-    background-color: rgba(2, 132, 199, 0.05);
-}
-
-.light-mode .note-title {
-    color: @text-light;
-}
-
-.light-mode .note-date,
-.light-mode .note-preview {
-    color: @dim-light;
-}
-
-/* Header bar */
-.light-mode headerbar {
-    background-color: @sidebar-light;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: none;
-}
-
-.light-mode .header-button {
-    color: @text-light;
-    background: none;
-    border: none;
-}
-
-.light-mode .header-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-/* Editor area */
-.light-mode .editor-area {
-    background-color: @bg-light;
-}
-
-.light-mode textview,
-.light-mode textview text {
-    background-color: @bg-light;
-    color: @text-light;
-    caret-color: @accent-light;
-}
-
-/* Status bar */
-.light-mode .status-bar {
-    background-color: @sidebar-light;
-    color: @dim-light;
-}
-
-.light-mode .word-count {
-    color: @dim-light;
-}
-
-/* === Common styles === */
-/* Window */
-window {
-    font-family: "Lato", "Open Sans", sans-serif;
-    /* Add transition for theme change */
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-window.fullscreen-mode {
-    /* Styles specific to fullscreen if needed */
-}
-window.sidebar-hidden .sidebar {
-    /* Could add transition here if hiding completely */
-    /* transition: min-width 0.3s ease, opacity 0.3s ease; */
-    /* min-width: 0; */
-    /* opacity: 0; */
-}
-
-/* Main UI elements */
-.main-pane handle {
-    min-width: 3px; /* Slightly thicker handle */
-    min-height: 3px;
-    background-color: rgba(128, 128, 128, 0.1); /* Subtle color */
-    border-left: 1px solid rgba(0,0,0,0.1);
-    border-right: 1px solid rgba(0,0,0,0.1);
-}
-.dark-mode .main-pane handle {
-    background-color: rgba(200, 200, 200, 0.1);
-    border-left: 1px solid rgba(255,255,255,0.1);
-    border-right: 1px solid rgba(255,255,255,0.1);
-}
-
-/* Sidebar styling */
-.sidebar {
-    transition: opacity 0.3s ease; /* Transition opacity if needed for hiding */
-}
-.sidebar-header-box {
-    padding: 10px 8px 10px 16px; /* Adjust padding */
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05); /* Match row border */
-}
-.dark-mode .sidebar-header-box {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-.sidebar-header {
-    font-size: 11px; /* Smaller header */
-    letter-spacing: 1px;
-    font-weight: 700; /* Bolder */
-}
-.new-note-button {
-    padding: 2px 4px; /* Smaller padding */
-    min-height: 0;
-    min-width: 0;
-}
-
-.notes-list {
-    border-radius: 0;
-}
-
-.note-row-outer { /* Target the outer box for hover */
-    transition: background-color 0.2s ease;
-}
-.note-row-outer:hover {
-    /* Apply hover background to outer box */
-}
-.dark-mode .note-row-outer:hover {
-    background-color: rgba(56, 189, 248, 0.05);
-}
-.light-mode .note-row-outer:hover {
-    background-color: rgba(2, 132, 199, 0.05);
-}
-
-.note-row:selected .note-row-outer { /* Apply selection style to outer box */
-    /* background-color: transparent; Remove selection from inner row */
-}
-.dark-mode .note-row:selected .note-row-outer {
-    background-color: rgba(56, 189, 248, 0.15);
-}
-.light-mode .note-row:selected .note-row-outer {
-    background-color: rgba(2, 132, 199, 0.1);
-}
-
-.note-controls {
-    opacity: 0; /* Hidden by default */
-    transition: opacity 0.2s ease;
-}
-.note-row-outer:hover .note-controls { /* Show on outer box hover */
-    opacity: 1;
-}
-.note-control-button {
-    padding: 4px;
-    min-height: 0;
-    min-width: 0;
+/* Make overlay buttons more visible and matching the screenshot */
+.overlay-button {
+    padding: 4px; /* Slightly smaller padding */
+    min-height: 28px; /* Slightly reduced height */
+    min-width: 28px;
     border-radius: 4px;
+    transition: all 0.2s ease;
+    margin: 0 2px;
 }
 
-/* === Dark mode specific styles === */
 .dark-mode .overlay-button {
-    color: @text-dark;
-    background-color: rgba(26, 32, 44, 0.4);
+    color: rgba(247, 250, 252, 0.9);
+    background-color: rgba(26, 32, 44, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark-mode .overlay-button:hover {
-    background-color: rgba(45, 55, 72, 0.6);
-}
-
-.dark-mode .note-row:hover .note-controls {
-    opacity: 1;
-}
-.dark-mode .note-control-button {
-    color: @dim-dark;
-    background: none;
-    border: none;
-}
-.dark-mode .note-control-button:hover {
-    color: @text-dark;
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* === Light mode specific styles === */
-.light-mode .overlay-button {
-    color: @text-light;
-    background-color: rgba(237, 242, 247, 0.4);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.light-mode .overlay-button:hover {
-    background-color: rgba(237, 242, 247, 0.7);
-}
-
-.light-mode .note-row:hover .note-controls {
-    opacity: 1;
-}
-.light-mode .note-control-button {
-    color: @dim-light;
-    background: none;
-    border: none;
-}
-.light-mode .note-control-button:hover {
-    color: @text-light;
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(79, 172, 254, 0.2); /* Accent color with transparency */
+    border-color: rgba(79, 172, 254, 0.4);
 }
 
 /* === Shortcuts Dialog === */
@@ -373,27 +206,27 @@ window.sidebar-hidden .sidebar {
     opacity: 0.5;
 }
 
-/* === Editor styling enhancements === */
+/* === Editor styling enhancements - based on screenshot === */
 .editor {
     padding: 0;
 }
 
 textview {
     font-family: "JetBrains Mono", "SF Mono", monospace;
-    font-size: 16px;
-    line-height: 1.7;
+    font-size: 15px; /* Slightly smaller to match screenshot */
+    line-height: 1.5;
 }
 
 textview text {
-    margin-top: 20%; /* Changed from vh to % */
-    margin-left: 10%;
-    margin-right: 10%;
+    margin-top: 15%; /* Adjusted based on screenshot */
+    margin-left: 20%;
+    margin-right: 20%;
 }
 
 .dark-mode textview,
 .dark-mode textview text {
     background-color: @bg-dark;
-    color: @text-dark;
+    color: rgba(247, 250, 252, 0.9); /* Slightly off-white for better readability */
     caret-color: @accent-dark;
 }
 
@@ -439,58 +272,4 @@ textview selection {
 /* Make sure the editor is accessible with keyboard focus */
 .editor-area {
     transition: background-color 0.3s ease;
-}
-
-/* === Top bar and window controls === */
-.top-bar {
-    background-color: transparent;
-    min-height: 32px;
-    opacity: 0.01; /* Almost invisible by default */
-    transition: opacity 0.3s ease;
-}
-
-window:hover .top-bar {
-    opacity: 1; /* Visible on window hover */
-}
-
-.window-handle {
-    min-height: 32px;
-    -gtk-window-dragging: true; /* Makes the area draggable */
-}
-
-.window-controls {
-    margin: 2px 2px 0 0;
-}
-
-.window-controls button {
-    min-height: 22px;
-    min-width: 22px;
-    padding: 2px;
-    border-radius: 50%;
-    background-color: transparent;
-    color: inherit;
-    border: none;
-}
-
-/* === Bottom Control Bar === */
-.control-bar {
-    background: transparent;
-    transition: opacity 0.3s ease;
-}
-
-.app-logo {
-    font-family: "Roboto Slab", "Noto Serif", serif;
-    font-size: 12px;
-    font-weight: 300;
-    opacity: 0.3;
-    letter-spacing: 3px;
-    user-select: none;
-}
-
-.dark-mode .app-logo {
-    color: @text-dark;
-}
-
-.light-mode .app-logo {
-    color: @text-light;
 }
