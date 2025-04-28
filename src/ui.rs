@@ -104,6 +104,7 @@ pub fn build_ui(app: &Application) {
         .label("NOTES")
         .xalign(0.0)
         .hexpand(true)
+        .margin_start(12) // Add left margin for padding from edge
         .css_classes(vec!["sidebar-header"])
         .build();
     
@@ -182,59 +183,52 @@ pub fn build_ui(app: &Application) {
     editor_scrolled_window.set_child(Some(&text_view));
 
     // --- Status Bar Setup ---
-    let status_box = Box::builder()
-        .orientation(Orientation::Horizontal)
-        .css_classes(vec!["status-bar"])
-        .margin_top(0)
-        .margin_bottom(0)
-        .margin_start(0)
-        .margin_end(0)
-        .build();
-    
-    let status_label = Label::builder()
-        .label("Ready")
-        .xalign(0.0)
-        .hexpand(true)
-        .css_classes(vec!["status-text"])
-        .build();
-    
-    let word_count_label = Label::builder()
-        .label("0 words")
-        .xalign(1.0)
-        .css_classes(vec!["word-count"])
-        .build();
-    
-    status_box.append(&status_label);
-    status_box.append(&word_count_label);
-    
-    // Add editor components to right pane - DON'T include status box here
-    right_pane.append(&editor_scrolled_window);
-
-    // --- Create Control Bar at Bottom ---
-    let control_bar = Box::builder()
-        .orientation(Orientation::Horizontal)
-        .css_classes(vec!["control-bar"])
-        .halign(gtk::Align::Fill)
-        .valign(gtk::Align::End)
-        .margin_bottom(10)
-        .margin_start(10)
-        .margin_end(10)
-        .spacing(8)
-        .build();
-    
-    // Improve app logo presentation
+    // App logo (center)
     let app_logo = Label::builder()
         .label(APP_NAME)
         .css_classes(vec!["app-logo"])
         .halign(gtk::Align::Center)
         .hexpand(true)
+        .margin_start(20)
+        .margin_end(20)
+        .build();
+        
+    // Status text (left side)
+    let status_label = Label::builder()
+        .label("Ready")
+        .xalign(0.0)
+        .hexpand(false)
+        .margin_start(10)
+        .css_classes(vec!["status-text"])
+        .build();
+        
+    // Word count (far right)
+    let word_count_label = Label::builder()
+        .label("0 words")
+        .xalign(1.0)
+        .margin_start(10)
+        .margin_end(10)
+        .css_classes(vec!["word-count"])
+        .build();
+        
+    // Create a unified bottom bar (combining status and controls)
+    let bottom_bar = Box::builder()
+        .orientation(Orientation::Horizontal)
+        .css_classes(vec!["bottom-bar"])
+        .margin_top(0)
+        .margin_bottom(0)
+        .margin_start(0)
+        .margin_end(0)
+        .spacing(8)
+        .height_request(38) // Set fixed height for better appearance
         .build();
     
-    // Create control buttons container (right side)
+    // Add buttons to controls container
     let controls_container = Box::builder()
         .orientation(Orientation::Horizontal)
         .spacing(8)
         .halign(gtk::Align::End)
+        .hexpand(false)
         .build();
     
     // Create keyboard shortcuts button
@@ -271,11 +265,16 @@ pub fn build_ui(app: &Application) {
     controls_container.append(&theme_toggle_button);
     controls_container.append(&fullscreen_button);
     
-    // Add elements to control bar
-    control_bar.append(&app_logo);
-    control_bar.append(&controls_container);
+    // Add all elements to the bottom bar in proper order
+    bottom_bar.append(&status_label);
+    bottom_bar.append(&app_logo);
+    bottom_bar.append(&controls_container);
+    bottom_bar.append(&word_count_label);
     
-    // --- Main Layout Assembly with proper bottom overlay ---
+    // Add editor components to right pane
+    right_pane.append(&editor_scrolled_window);
+
+    // --- Main Layout Assembly ---
     // Create main vertical box to hold all components
     let main_box = Box::builder()
         .orientation(Orientation::Vertical)
@@ -289,14 +288,11 @@ pub fn build_ui(app: &Application) {
     // Add paned container (main content)
     main_box.append(&paned);
     
-    // Add status bar at the bottom
-    main_box.append(&status_box);
+    // Add unified bottom bar at the bottom
+    main_box.append(&bottom_bar);
     
     // Set main box as the overlay child
     main_overlay.set_child(Some(&main_box));
-    
-    // Add control bar as an overlay - it will sit above the status bar
-    main_overlay.add_overlay(&control_bar);
     
     // Set the overlay as the window child
     window.set_child(Some(&main_overlay));
