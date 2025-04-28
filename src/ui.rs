@@ -116,7 +116,7 @@ pub fn build_ui(app: &Application) {
     let new_note_button = Button::builder()
         .icon_name("list-add-symbolic")
         .tooltip_text("New Note")
-        .css_classes(vec!["note-control-button"])
+        .css_classes(vec!["icon-only-button"])
         .margin_end(8)
         .build();
         
@@ -236,32 +236,32 @@ pub fn build_ui(app: &Application) {
         .hexpand(false)
         .build();
     
-    // Create keyboard shortcuts button - remove button styling
+    // Create keyboard shortcuts button - use icon-only styling
     let shortcuts_button = Button::builder()
         .icon_name("input-keyboard-symbolic")
         .tooltip_text("Keyboard Shortcuts (Ctrl+K)")
-        .css_classes(vec!["overlay-button"])
+        .css_classes(vec!["icon-only-button"])
         .build();
     
-    // Create sidebar toggle button - remove button styling
+    // Create sidebar toggle button - use icon-only styling
     let sidebar_toggle = Button::builder()
         .icon_name("view-sidebar-start-symbolic")
         .tooltip_text("Toggle Sidebar (Ctrl+B)")
-        .css_classes(vec!["overlay-button"])
+        .css_classes(vec!["icon-only-button"])
         .build();
     
-    // Create theme toggle button - remove button styling
+    // Create theme toggle button - use icon-only styling
     let theme_toggle_button = Button::builder()
         .icon_name("weather-clear-night-symbolic")
         .tooltip_text("Toggle Light/Dark Theme (Ctrl+T)")
-        .css_classes(vec!["overlay-button"])
+        .css_classes(vec!["icon-only-button"])
         .build();
     
-    // Create fullscreen toggle button - remove button styling
+    // Create fullscreen toggle button - use icon-only styling
     let fullscreen_button = Button::builder()
         .icon_name("view-fullscreen-symbolic")
         .tooltip_text("Toggle Fullscreen Mode (F11)")
-        .css_classes(vec!["overlay-button"])
+        .css_classes(vec!["icon-only-button"])
         .build();
     
     // Add buttons to controls container
@@ -815,14 +815,14 @@ fn refresh_note_list(list_box: &ListBox) {
                 let edit_button = Button::builder()
                     .icon_name("document-edit-symbolic")
                     .tooltip_text("Rename Note")
-                    .css_classes(vec!["icon-button", "note-control-button"])
+                    .css_classes(vec!["icon-only-button"])
                     .build();
 
-                // Delete button - minimal style, just the icon
+                // Delete button - with icon-only styling
                 let delete_button = Button::builder()
                     .icon_name("user-trash-symbolic")
                     .tooltip_text("Delete Note")
-                    .css_classes(vec!["icon-button", "note-control-button"])
+                    .css_classes(vec!["icon-only-button"])
                     .build();
 
                 // Add buttons to the control box

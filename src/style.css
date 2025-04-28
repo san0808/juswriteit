@@ -157,30 +157,32 @@ window {
     letter-spacing: 1px;
 }
 
-/* Truly minimalistic button styling */
+/* Add these styles for purely icon-based buttons without visible boxes */
+
 .icon-only-button {
     background: none;
     border: none;
     box-shadow: none;
-    padding: 4px;
-    margin: 0;
     min-width: 24px;
     min-height: 24px;
+    padding: 4px;
+    margin: 0;
     color: inherit;
-    opacity: 0.8;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    border-radius: 0;
 }
 
 .icon-only-button:hover {
     background: none;
+    border: none;
+    box-shadow: none;
     opacity: 1;
+    transform: scale(1.1);
 }
 
-.dark-mode .icon-only-button:hover {
-    color: #ffffff;
-}
-
-.light-mode .icon-only-button:hover {
-    color: #000000;
+.icon-only-button:active {
+    transform: scale(0.95);
 }
 
 /* Make top and bottom bars match editor background */
@@ -194,4 +196,24 @@ window {
 .light-mode .bottom-bar {
     background-color: #ffffff;
     border-color: #e0e0e0;
+}
+
+/* Remove box from controls container */
+.note-controls {
+    opacity: 0;
+    transition: opacity 150ms ease-in-out;
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.note-row-outer:hover .note-controls {
+    opacity: 0.8;
+}
+
+/* Clean up control box spacing */
+.note-controls > button {
+    margin-left: 2px;
+    margin-right: 2px;
 }
