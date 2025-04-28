@@ -829,13 +829,16 @@ fn refresh_note_list(list_box: &ListBox) {
                 control_box.append(&edit_button);
                 control_box.append(&delete_button);
 
+                // Make the controls container a bit sleeker
+                control_box.set_opacity(0.7); // Slightly transparent by default
+
                 // Add content and controls to the row
                 row_outer_box.append(&row_content_box);
                 row_outer_box.append(&control_box);
 
-                // Create the row and add the content
+                // Create the row and add the content with subtler styling
                 let row = gtk::ListBoxRow::builder()
-                    .css_classes(vec!["note-row"])
+                    .css_classes(vec!["note-row", "borderless"])
                     .build();
                 
                 row.set_child(Some(&row_outer_box));

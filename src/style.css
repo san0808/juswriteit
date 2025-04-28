@@ -9,156 +9,32 @@ window {
     transition-duration: 200ms;
 }
 
-/* Dark Mode (Default) */
-.dark-mode {
-    background-color: #1e1e1e;
-    color: #f0f0f0;
+/* Remove borders for a seamless look */
+.top-bar, .bottom-bar {
+    border: none !important;
 }
 
-.dark-mode .top-bar {
-    background-color: #1e1e1e;
-    border-bottom: 1px solid #3d3d3d;
+/* Make the sidebar blend better with the main UI */
+.sidebar {
+    border-right: none !important;
+    box-shadow: none; /* Remove shadow for a cleaner look */
 }
 
 .dark-mode .sidebar {
-    background-color: #252525;
-    border-right: 1px solid #3d3d3d;
-}
-
-.dark-mode .sidebar-header-box {
-    background-color: #252525;
-    border-bottom: 1px solid #333333;
-}
-
-.dark-mode .bottom-bar {
-    background-color: #1e1e1e;
-    border-top: 1px solid #3d3d3d;
-}
-
-.dark-mode .editor-area {
-    background-color: #1e1e1e;
-}
-
-.dark-mode .editor {
-    background-color: #1e1e1e;
-    color: #f0f0f0;
-}
-
-.dark-mode .editor-scroll {
-    background-color: #1e1e1e;
-}
-
-/* Light Mode */
-.light-mode {
-    background-color: #ffffff;
-    color: #333333;
-}
-
-.light-mode .top-bar {
-    background-color: #ffffff;
-    color: #333333;
-    border-bottom: 1px solid #e0e0e0;
+    background-color: #1b1b1b; /* Slightly darker than editor for subtle distinction */
 }
 
 .light-mode .sidebar {
-    background-color: #f2f2f2;
-    color: #333333;
-    border-right: 1px solid #e0e0e0;
+    background-color: #f7f7f7; /* Slightly different from editor for subtle distinction */
 }
 
-.light-mode .sidebar-header-box {
-    background-color: #f2f2f2;
-    color: #333333;
-    border-bottom: 1px solid #e0e0e0;
-    padding: 8px;
+.sidebar-header-box {
+    border-bottom: none !important;
+    padding: 10px 8px;
+    opacity: 0.9;
 }
 
-.light-mode .bottom-bar {
-    background-color: #ffffff;
-    color: #333333;
-    border-top: 1px solid #e0e0e0;
-}
-
-.light-mode .status-text,
-.light-mode .word-count,
-.light-mode .app-logo {
-    color: #333333;
-}
-
-.light-mode .overlay-button {
-    color: #555555;
-    background: none;
-    border: none;
-    box-shadow: none;
-}
-
-.light-mode .overlay-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-    border-radius: 4px;
-}
-
-.light-mode .editor-area {
-    background-color: #ffffff;
-}
-
-.light-mode .editor {
-    background-color: #ffffff;
-    color: #333333;
-}
-
-.light-mode .editor-scroll {
-    background-color: #ffffff;
-}
-
-/* Make sure the notes list has proper background in light mode */
-.light-mode .notes-list {
-    background-color: #f2f2f2;
-}
-
-.light-mode .note-row {
-    background-color: #f2f2f2;
-}
-
-.light-mode .note-row:hover {
-    background-color: #e5e5e5;
-}
-
-.light-mode .note-row:selected {
-    background-color: #d8d8d8;
-}
-
-/* Clean minimalistic sidebar */
-.clean-list row {
-    padding: 0;
-    border: none;
-}
-
-.dark-mode .clean-list row:selected {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.light-mode .clean-list row:selected {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-.dark-mode .sidebar-header-box {
-    background-color: #252525;
-    border-bottom: 1px solid #333333;
-}
-
-.light-mode .sidebar-header-box {
-    background-color: #f2f2f2;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.sidebar-header {
-    font-weight: 500;
-    font-size: 12px;
-    letter-spacing: 1px;
-}
-
-/* Add these styles for purely icon-based buttons without visible boxes */
-
+/* Icon-only buttons for a cleaner interface */
 .icon-only-button {
     background: none;
     border: none;
@@ -169,7 +45,7 @@ window {
     margin: 0;
     color: inherit;
     opacity: 0.7;
-    transition: opacity 0.2s ease, transform 0.1s ease;
+    transition: all 0.2s ease;
     border-radius: 0;
 }
 
@@ -185,20 +61,99 @@ window {
     transform: scale(0.95);
 }
 
-/* Make top and bottom bars match editor background */
-.dark-mode .top-bar,
-.dark-mode .bottom-bar {
+/* Borderless elements */
+.borderless {
+    border: none !important;
+}
+
+/* Dark Mode Styling - matching screenshot */
+.dark-mode {
     background-color: #1e1e1e;
-    border-color: #3d3d3d;
+    color: #f0f0f0;
 }
 
-.light-mode .top-bar,
-.light-mode .bottom-bar {
+.dark-mode .top-bar {
+    background-color: #1e1e1e; /* Match with main background */
+}
+
+.dark-mode .bottom-bar {
+    background-color: #1e1e1e; /* Match with main background */
+}
+
+.dark-mode .editor-area {
+    background-color: #1e1e1e;
+}
+
+.dark-mode .editor {
+    background-color: #1e1e1e;
+    color: #f0f0f0;
+}
+
+/* Light Mode Styling - matching screenshot */
+.light-mode {
     background-color: #ffffff;
-    border-color: #e0e0e0;
+    color: #333333;
 }
 
-/* Remove box from controls container */
+.light-mode .top-bar {
+    background-color: #ffffff; /* Match with main background */
+}
+
+.light-mode .bottom-bar {
+    background-color: #ffffff; /* Match with main background */
+}
+
+.light-mode .editor-area {
+    background-color: #ffffff;
+}
+
+.light-mode .editor {
+    background-color: #ffffff;
+    color: #333333;
+}
+
+/* Refined note list styling */
+.note-row {
+    transition: background-color 0.15s ease;
+    border-radius: 4px;
+    margin: 2px 4px;
+}
+
+.dark-mode .note-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-mode .note-row:selected {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .note-title {
+    color: #ffffff;
+}
+
+.dark-mode .note-date,
+.dark-mode .note-preview {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.light-mode .note-row:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.light-mode .note-row:selected {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.light-mode .note-title {
+    color: #333333;
+}
+
+.light-mode .note-date,
+.light-mode .note-preview {
+    color: rgba(0, 0, 0, 0.6);
+}
+
+/* Control buttons */
 .note-controls {
     opacity: 0;
     transition: opacity 150ms ease-in-out;
@@ -209,11 +164,71 @@ window {
 }
 
 .note-row-outer:hover .note-controls {
+    opacity: 0.7;
+}
+
+/* Note styling */
+.note-title {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.note-date, .note-preview {
+    font-size: 12px;
+}
+
+/* Status bar styling */
+.status-text, .word-count {
     opacity: 0.8;
 }
 
-/* Clean up control box spacing */
-.note-controls > button {
-    margin-left: 2px;
-    margin-right: 2px;
+.app-logo {
+    font-weight: bold;
+}
+
+/* Custom scrollbar for sidebar */
+scrollbar {
+    background-color: transparent;
+    border: none;
+}
+
+scrollbar slider {
+    min-width: 6px;
+    min-height: 6px;
+    border-radius: 3px;
+    background-color: rgba(128, 128, 128, 0.3);
+}
+
+scrollbar slider:hover {
+    background-color: rgba(128, 128, 128, 0.5);
+}
+
+/* Dialog styling */
+.shortcuts-dialog {
+    border-radius: 8px;
+}
+
+.shortcuts-title {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.shortcut-key {
+    font-family: monospace;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 3px;
+    background-color: rgba(128, 128, 128, 0.15);
+}
+
+/* Paned handle styling */
+paned > separator {
+    background-color: transparent;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+/* Window controls styling */
+.window-handle {
+    -gtk-window-draggable: true;
 }
