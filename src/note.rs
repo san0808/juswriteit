@@ -171,7 +171,7 @@ impl Note {
     /// Check if a note is empty or nearly empty
     /// Considers notes with just whitespace or very few characters as empty.
     pub fn is_empty(&self) -> bool {
-        self.content.trim().is_empty() || self.content.len() < 5
+        self.content.trim().is_empty()
     }
     
     /// Update note title with today's date if it's empty and old

@@ -398,15 +398,44 @@ pub fn build_ui(app: &Application) {
 
     // --- Fix the selection handler ---
     list_box.connect_row_selected(move |_listbox, row_opt| {
-        // Cancel any pending auto-save
+        // Synchronously save the currently active note if it has changes
         {
-            let mut active = active_note_for_select.borrow_mut();
-            if let Some(active_note) = active.as_mut() {
-                if let Some(source_id) = active_note.auto_save_source_id.take() {
-                    let _ = source_id.remove();
+            let mut active_opt = active_note_for_select.borrow_mut();
+            if let Some(active) = active_opt.as_mut() {
+                if active.has_changes {
+                    // Cancel any pending auto-save timer first
+                    if let Some(source_id) = active.auto_save_source_id.take() {
+                        let _ = source_id.remove();
+                    }
+                    // Attempt to save synchronously
+                    match active.note.save() {
+                        Ok(_) => {
+                            active.has_changes = false;
+                            status_label_for_select.set_text("Saved"); // Give feedback
+                            let status_label_clone = status_label_for_select.clone();
+                            glib::timeout_add_seconds_local(2, move || { // Revert status after a bit
+                                if status_label_clone.text() == "Saved" { // Only if we set it
+                                    status_label_clone.set_text("Ready");
+                                }
+                                glib::ControlFlow::Break
+                            });
+                        }
+                        Err(e) => {
+                            eprintln!("Error saving note {} before switching: {}", active.title, e);
+                            // Show an error to the user. The 'window_for_select' is cloned earlier for this handler.
+                            show_error_dialog(&window_for_select, "Save Error", &format!("Failed to save changes to note '{}' before switching: {}", active.title, e));
+                            // Note: active.has_changes remains true, as the save failed.
+                        }
+                    }
+                } else {
+                    // No changes, but if there's an auto-save timer for some reason, cancel it.
+                    if let Some(source_id) = active.auto_save_source_id.take() {
+                        let _ = source_id.remove();
+                    }
                 }
             }
         }
+        // The original block that only cancelled the timer is now effectively covered by the logic above.
 
         if let Some(row) = row_opt {
             // Get the note title from the row's child structure
@@ -559,6 +588,7 @@ pub fn build_ui(app: &Application) {
         }
         
         // Handle title update outside the borrow scope if needed
+        /*
         if update_title {
             // Get a new borrow to update the title
             if let Ok(mut active_guard) = active_note_for_changes.try_borrow_mut() {
@@ -583,6 +613,7 @@ pub fn build_ui(app: &Application) {
                 });
             }
         }
+        */
     });
 
     // --- Global Keyboard Shortcuts ---
@@ -639,21 +670,45 @@ pub fn build_ui(app: &Application) {
     let word_count_label_for_new = word_count_label.clone(); // Clone for new note
 
     new_note_button.connect_clicked(move |_| {
-        // Find an empty note or create a new one
-        match find_or_create_new_note() {
-            Ok(mut note) => { // Make note mutable
-                // Check if we reused an old empty note and update its title if needed
-                match note.update_title_if_empty_and_old() {
-                    Ok(true) => println!("Updated title for old empty note to: {}", note.title),
-                    Ok(false) => (), // Title didn't need updating
-                    Err(e) => {
-                        eprintln!("Error updating title for old empty note: {}", e);
-                        // Proceed anyway, but log the error
+        // Synchronously save the currently active note if it has changes
+        {
+            let mut active_opt = active_note_for_new.borrow_mut(); // This is a clone of the main active_note Rc<RefCell>
+            if let Some(active) = active_opt.as_mut() {
+                if active.has_changes {
+                    if let Some(source_id) = active.auto_save_source_id.take() {
+                        let _ = source_id.remove();
+                    }
+                    match active.note.save() {
+                        Ok(_) => {
+                            active.has_changes = false;
+                            status_label_for_new.set_text("Saved"); // Give feedback
+                            let status_label_clone = status_label_for_new.clone();
+                             glib::timeout_add_seconds_local(2, move || {
+                                if status_label_clone.text() == "Saved" {
+                                    status_label_clone.set_text("Ready");
+                                }
+                                glib::ControlFlow::Break
+                            });
+                        }
+                        Err(e) => {
+                            eprintln!("Error saving note {} before creating new: {}", active.title, e);
+                            show_error_dialog(&window_for_new, "Save Error", &format!("Failed to save changes to note '{}' before creating new: {}", active.title, e));
+                             // Note: active.has_changes remains true, as the save failed.
+                        }
+                    }
+                } else {
+                    if let Some(source_id) = active.auto_save_source_id.take() {
+                        let _ = source_id.remove();
                     }
                 }
+            }
+        }
 
+        // Find an empty note or create a new one
+        match find_or_create_new_note() {
+            Ok(note) => { // note is no longer mut here as update_title_if_empty_and_old is removed
                 // Clear the editor
-                text_view_for_new.buffer().set_text(&note.content); // Use content from potentially reused note
+                text_view_for_new.buffer().set_text(&note.content); // Use content from the new note
                 
                 // Update the active note
                 *active_note_for_new.borrow_mut() = Some(ActiveNote {
@@ -702,23 +757,8 @@ fn count_words(text: &str) -> usize {
 
 /// Find an empty note or create a new one, updating title if necessary
 fn find_or_create_new_note() -> Result<Note, String> {
-    match Note::get_all() {
-        Ok(notes) => {
-            // Look for empty notes (or very minimal content)
-            for note in notes { // Remove 'mut' keyword
-                if note.is_empty() {
-                    // Found an empty note, return it (title update handled in caller)
-                    return Ok(note);
-                }
-            }
-            // No empty note found, create a new one
-            Note::new(&Note::generate_unique_title())
-        },
-        Err(_) => {
-            // If we can't read notes, just try to create a new one
-            Note::new(&Note::generate_unique_title())
-        }
-    }
+    // Always create a new note to prevent accidental reuse/rename of existing empty notes.
+    Note::new(&Note::generate_unique_title())
 }
 
 /// Refresh the note list with edit and delete buttons on hover
