@@ -1,7 +1,8 @@
 use gtk::prelude::*;
 use gtk::{glib, Application, ApplicationWindow, Paned, Orientation, Label,
           ListBox, ScrolledWindow, Box, TextView, Button,
-          EventControllerKey, CssProvider, Overlay, WindowHandle, WindowControls};
+          EventControllerKey, CssProvider, Overlay, WindowHandle, WindowControls,
+          SearchEntry};
 use glib::{clone, Propagation};
 use gtk::gdk::{Key, ModifierType};
 use std::cell::RefCell;
@@ -152,7 +153,55 @@ pub fn build_ui(app: &Application) {
     
     // Add the sidebar components
     left_pane.append(&sidebar_header_box); // Use the box containing label and button
+
+    // Create SearchEntry for filtering notes
+    let search_entry = SearchEntry::builder()
+        .placeholder_text("Search notes...")
+        .margin_top(6)
+        .margin_bottom(6)
+        .margin_start(12)
+        .margin_end(12)
+        .hexpand(true)
+        .css_classes(vec!["search-entry"]) // For potential styling
+        .build();
+    
+    left_pane.append(&search_entry); // Add search entry below header, above list
     left_pane.append(&scrolled_window);
+
+    // --- Filtering Logic for SearchEntry ---
+    let list_box_for_search = list_box.clone();
+    search_entry.connect_search_changed(move |search_bar| {
+        let query = search_bar.text().to_lowercase();
+        let list_box = &list_box_for_search;
+
+        let mut current_row_index = 0;
+        while let Some(row) = list_box.row_at_index(current_row_index) {
+            if row.is_sensitive() { // Only process actual note rows, not placeholders like "No notes yet"
+                let title_label_opt = row.child() // row_outer_box
+                    .and_then(|outer_box| outer_box.downcast::<Box>().ok()) 
+                    .and_then(|hbox| hbox.first_child()) // row_content_box
+                    .and_then(|content_box| content_box.downcast::<Box>().ok()) 
+                    .and_then(|vbox| vbox.first_child()) // title_label
+                    .and_then(|widget| widget.downcast::<Label>().ok());
+
+                if let Some(title_label) = title_label_opt {
+                    let title = title_label.label().to_lowercase();
+                    if query.is_empty() || title.contains(&query) {
+                        row.set_visible(true);
+                    } else {
+                        row.set_visible(false);
+                    }
+                } else {
+                    // If title can't be extracted, make it visible by default if query is empty
+                    row.set_visible(query.is_empty());
+                }
+            } else {
+                 // For non-sensitive rows (like "No notes yet" placeholder), hide if there's a query
+                row.set_visible(query.is_empty());
+            }
+            current_row_index += 1;
+        }
+    });
 
     // --- Right Pane (Editor Area) Setup ---
     let right_pane = Box::builder()
