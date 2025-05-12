@@ -100,7 +100,7 @@ impl Note {
 
         // Check if a note with the new title already exists
         if new_path.exists() && new_path != self.path {
-            return Err(format!("A note named \"{}\" already exists.", new_title));
+            return Err(format!("A note named \"\"{}\"\" already exists.", new_title));
         }
 
         // Attempt to rename the file

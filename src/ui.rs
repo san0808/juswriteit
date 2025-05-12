@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::PathBuf;
 use chrono::{DateTime, Local};
+use std::sync::Once;
 
 use crate::note::Note;
 use crate::utils::{show_error_dialog, show_confirmation_dialog, schedule_auto_save};
@@ -35,9 +36,13 @@ impl Clone for ActiveNote {
     }
 }
 
-
 // Auto-save delay in milliseconds
 const AUTO_SAVE_DELAY_MS: u32 = 2000; // 2 seconds
+
+// Flag to indicate programmatic text changes
+thread_local! {
+    static PROGRAMMATIC_TEXT_CHANGE: RefCell<bool> = RefCell::new(false);
+}
 
 // Add app name constant
 const APP_NAME: &str = "Penscript";
@@ -310,11 +315,11 @@ pub fn build_ui(app: &Application) {
         if is_fullscreen {
             window_for_fullscreen.unfullscreen();
             window_for_fullscreen.remove_css_class("fullscreen-mode");
-            button.set_icon_name("view-fullscreen-symbolic");
+            button.set_icon_name("view-restore-symbolic");
         } else {
             window_for_fullscreen.fullscreen();
             window_for_fullscreen.add_css_class("fullscreen-mode");
-            button.set_icon_name("view-restore-symbolic");
+            button.set_icon_name("view-fullscreen-symbolic");
         }
     });
     
@@ -412,9 +417,22 @@ pub fn build_ui(app: &Application) {
                         Ok(_) => {
                             active.has_changes = false;
                             status_label_for_select.set_text("Saved"); // Give feedback
+
+                            // Refresh the list to update preview/timestamp
+                            let list_box_for_refresh = _listbox.clone(); // _listbox is the first arg to connect_row_selected
+                            let active_note_for_refresh = active_note_for_select.clone();
+                            let window_for_refresh = window_for_select.clone();
+                            let status_label_for_refresh = status_label_for_select.clone();
+                            let word_count_label_for_refresh = word_count_label_for_select.clone();
+                            let text_view_for_refresh = text_view_for_select.clone();
+                            let _original_title_for_reselect = active.title.clone(); // THIS LINE: Ensure variable is _original_title_for_reselect
+
+                            refresh_note_list(&list_box_for_refresh, &active_note_for_refresh, &window_for_refresh, &status_label_for_refresh, &word_count_label_for_refresh, &text_view_for_refresh);
+                            select_note_by_title(&list_box_for_refresh, &_original_title_for_reselect); // Ensure uses non-prefixed
+
                             let status_label_clone = status_label_for_select.clone();
                             glib::timeout_add_seconds_local(2, move || { // Revert status after a bit
-                                if status_label_clone.text() == "Saved" { // Only if we set it
+                                if status_label_clone.text() == "Saved" {
                                     status_label_clone.set_text("Ready");
                                 }
                                 glib::ControlFlow::Break
@@ -423,8 +441,9 @@ pub fn build_ui(app: &Application) {
                         Err(e) => {
                             eprintln!("Error saving note {} before switching: {}", active.title, e);
                             // Show an error to the user. The 'window_for_select' is cloned earlier for this handler.
-                            show_error_dialog(&window_for_select, "Save Error", &format!("Failed to save changes to note '{}' before switching: {}", active.title, e));
+                            show_error_dialog(&window_for_select, "Save Error", &format!("Failed to save changes to note '{}' before switching: {}. Your changes were NOT saved. Please try again or check permissions/disk space.", active.title, e));
                             // Note: active.has_changes remains true, as the save failed.
+                            return; // CRITICAL: Do not proceed with note switch if save failed
                         }
                     }
                 } else {
@@ -454,7 +473,9 @@ pub fn build_ui(app: &Application) {
                 // When loading a note, update the window title properly
                 match Note::load(&file_path) {
                     Ok(note) => {
+                        PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = true);
                         text_view_for_select.buffer().set_text(&note.content);
+                        PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = false);
                         *active_note_for_select.borrow_mut() = Some(ActiveNote {
                             path: file_path,
                             title: title.to_string(),
@@ -471,7 +492,9 @@ pub fn build_ui(app: &Application) {
                     },
                     Err(e) => {
                         eprintln!("Error loading note content: {}", e);
+                        PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = true);
                         text_view_for_select.buffer().set_text("");
+                        PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = false);
                         window_for_select.set_title(Some(&format!("{}", APP_NAME))); // Just use app name
                         status_label_for_select.set_text("Error loading note");
                         *active_note_for_select.borrow_mut() = None;
@@ -481,7 +504,9 @@ pub fn build_ui(app: &Application) {
             } else {
                  // Handle case where title couldn't be extracted (e.g., placeholder row)
                 *active_note_for_select.borrow_mut() = None;
+                PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = true);
                 text_view_for_select.buffer().set_text("");
+                PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = false);
                 window_for_select.set_title(Some("JustWrite"));
                 status_label_for_select.set_text("Ready");
                 word_count_label_for_select.set_text("0 words");
@@ -489,7 +514,9 @@ pub fn build_ui(app: &Application) {
             }
         } else {
             // No row selected
+            PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = true);
             text_view_for_select.buffer().set_text("");
+            PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = false);
             *active_note_for_select.borrow_mut() = None;
             window_for_select.set_title(Some("JustWrite"));
             status_label_for_select.set_text("Ready");
@@ -505,10 +532,16 @@ pub fn build_ui(app: &Application) {
     let text_view_for_changes = text_view.clone();
     let status_label_for_changes = status_label.clone();
     let word_count_label_for_changes = word_count_label.clone();
-    let list_box_for_changes = list_box.clone();
-    let window_for_changes = window.clone();
+    // Make these available for refresh_note_list in auto-save
+    let list_box_for_auto_save_refresh = list_box.clone(); 
+    let window_for_auto_save_refresh = window.clone();
+    let text_view_for_auto_save_refresh = text_view.clone(); // text_view_ref for refresh_note_list
 
     buffer.connect_changed(move |_| {
+        if PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow()) {
+            return; // Ignore changes made by set_text programmatically
+        }
+
         let content = text_view_for_changes.buffer().text(
             &text_view_for_changes.buffer().start_iter(),
             &text_view_for_changes.buffer().end_iter(),
@@ -521,9 +554,9 @@ pub fn build_ui(app: &Application) {
         word_count_label_for_changes.set_text(&count_text);
         
         // Separate mutable borrow scope to avoid conflicts
-        let mut update_title = false;
-        let mut new_title = String::new();
-        let mut need_refresh = false;
+        let mut _update_title = false; // Prefixed
+        let mut _new_title = String::new(); // Prefixed
+        let mut _need_refresh = false; // Prefixed and remove mut if not reassigned later
         
         {
             let mut active_note_guard = active_note_for_changes.borrow_mut();
@@ -550,8 +583,8 @@ pub fn build_ui(app: &Application) {
                             };
                             
                             if new_potential_title != active.title && !new_potential_title.is_empty() {
-                                update_title = true;
-                                new_title = new_potential_title;
+                                _update_title = true;
+                                _new_title = new_potential_title;
                             }
                         }
                     }
@@ -561,21 +594,45 @@ pub fn build_ui(app: &Application) {
                 let mut note_to_save = active.note.clone();
                 let active_note_ref = active_note_for_changes.clone();
                 let status_label_ref = status_label_for_changes.clone();
+                // Clones for refresh_note_list inside auto-save
+                let list_box_clone = list_box_for_auto_save_refresh.clone();
+                let active_note_clone_for_refresh = active_note_for_changes.clone();
+                let window_clone_for_refresh = window_for_auto_save_refresh.clone();
+                let status_label_clone_for_refresh = status_label_for_changes.clone();
+                let word_count_label_clone_for_refresh = word_count_label_for_changes.clone();
+                let text_view_clone_for_refresh = text_view_for_auto_save_refresh.clone();
                 
                 active.auto_save_source_id = Some(schedule_auto_save(AUTO_SAVE_DELAY_MS, move || {
                     match note_to_save.save() {
                         Ok(_) => {
                             status_label_ref.set_text("Auto-saved");
-                            
-                            // Modify active note in a separate borrow scope
+                            let mut needs_list_refresh = false;
                             if let Ok(mut guard) = active_note_ref.try_borrow_mut() {
                                 if let Some(active_inner) = guard.as_mut() {
-                                    active_inner.has_changes = false;
-                                    active_inner.auto_save_source_id = None;
-                                    active_inner.note.modified_time = note_to_save.modified_time;
+                                    if active_inner.path == note_to_save.path { 
+                                        active_inner.note.modified_time = note_to_save.modified_time;
+                                        if active_inner.note.content == note_to_save.content {
+                                            if active_inner.has_changes { // Only refresh if it *was* changed
+                                                needs_list_refresh = true;
+                                            }
+                                            active_inner.has_changes = false;
+                                        } 
+                                        // else: content changed after this auto-save was scheduled, has_changes remains true
+                                        active_inner.auto_save_source_id = None; 
+                                    }
                                 }
                             }
                             
+                            if needs_list_refresh {
+                                refresh_note_list(&list_box_clone, &active_note_clone_for_refresh, &window_clone_for_refresh, &status_label_clone_for_refresh, &word_count_label_clone_for_refresh, &text_view_clone_for_refresh);
+                                // Potentially re-select the active note to ensure its row is visible/updated if order changed
+                                if let Ok(guard) = active_note_clone_for_refresh.try_borrow() {
+                                    if let Some(active_inner) = guard.as_ref() {
+                                        select_note_by_title(&list_box_clone, &active_inner.title);
+                                    }
+                                }
+                            }
+
                             let status_label_clone = status_label_ref.clone();
                             glib::timeout_add_seconds_local(3, move || {
                                 status_label_clone.set_text("Ready");
@@ -593,25 +650,31 @@ pub fn build_ui(app: &Application) {
         
         // Handle title update outside the borrow scope if needed
         /*
-        if update_title {
+        if _update_title {
             // Get a new borrow to update the title
             if let Ok(mut active_guard) = active_note_for_changes.try_borrow_mut() {
                 if let Some(active) = active_guard.as_mut() {
-                    if let Ok(()) = active.note.rename(&new_title) {
-                        active.title = new_title.clone();
-                        window_for_changes.set_title(Some(&format!("{} - {}", APP_NAME, new_title)));
-                        need_refresh = true;
+                    if let Ok(()) = active.note.rename(&_new_title) {
+                        active.title = _new_title.clone();
+                        window_for_auto_save_refresh.set_title(Some(&format!("{} - {}", APP_NAME, _new_title))); // Use cloned window
+                        _need_refresh = true;
                     }
                 }
             }
             
             // Refresh list if title was updated
-            if need_refresh {
+            if _need_refresh {
                 // Use a timeout to delay the refresh slightly
-                let list_box_clone = list_box_for_changes.clone();
-                let title_clone = new_title.clone();
+                let list_box_clone = list_box_for_auto_save_refresh.clone();
+                let title_clone = _new_title.clone();
+                let active_note_clone_for_title_refresh = active_note_for_changes.clone();
+                let window_clone_for_title_refresh = window_for_auto_save_refresh.clone();
+                let status_label_clone_for_title_refresh = status_label_for_changes.clone();
+                let word_count_label_clone_for_title_refresh = word_count_label_for_changes.clone();
+                let text_view_clone_for_title_refresh = text_view_for_auto_save_refresh.clone();
+
                 glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
-                    refresh_note_list(&list_box_clone);
+                    refresh_note_list(&list_box_clone, &active_note_clone_for_title_refresh, &window_clone_for_title_refresh, &status_label_clone_for_title_refresh, &word_count_label_clone_for_title_refresh, &text_view_clone_for_title_refresh);
                     select_note_by_title(&list_box_clone, &title_clone);
                     glib::ControlFlow::Break
                 });
@@ -672,6 +735,7 @@ pub fn build_ui(app: &Application) {
     let window_for_new = window.clone();
     let status_label_for_new = status_label.clone();
     let word_count_label_for_new = word_count_label.clone(); // Clone for new note
+    let text_view_for_new_refresh = text_view.clone(); // Clone for refresh_note_list call
 
     new_note_button.connect_clicked(move |_| {
         // Synchronously save the currently active note if it has changes
@@ -686,6 +750,19 @@ pub fn build_ui(app: &Application) {
                         Ok(_) => {
                             active.has_changes = false;
                             status_label_for_new.set_text("Saved"); // Give feedback
+
+                            // Refresh the list to update preview/timestamp for the saved note
+                            let list_box_for_refresh = list_box_for_new.clone();
+                            let active_note_for_refresh = active_note_for_new.clone(); // This Rc still points to the *previously* active note
+                            let window_for_refresh = window_for_new.clone();
+                            let status_label_for_refresh = status_label_for_new.clone();
+                            let word_count_label_for_refresh = word_count_label_for_new.clone();
+                            let text_view_for_refresh = text_view_for_new_refresh.clone(); // Use the one cloned for new note logic
+                            let _original_title_for_reselect = active.title.clone(); // THIS LINE: Ensure variable is _original_title_for_reselect
+
+                            refresh_note_list(&list_box_for_refresh, &active_note_for_refresh, &window_for_refresh, &status_label_for_refresh, &word_count_label_for_refresh, &text_view_for_refresh);
+                            // No select_note_by_title using this variable here
+
                             let status_label_clone = status_label_for_new.clone();
                              glib::timeout_add_seconds_local(2, move || {
                                 if status_label_clone.text() == "Saved" {
@@ -696,8 +773,9 @@ pub fn build_ui(app: &Application) {
                         }
                         Err(e) => {
                             eprintln!("Error saving note {} before creating new: {}", active.title, e);
-                            show_error_dialog(&window_for_new, "Save Error", &format!("Failed to save changes to note '{}' before creating new: {}", active.title, e));
+                            show_error_dialog(&window_for_new, "Save Error", &format!("Failed to save changes to note '{}' before creating new: {}. Your changes were NOT saved. New note not created.", active.title, e));
                              // Note: active.has_changes remains true, as the save failed.
+                            return; // CRITICAL: Do not proceed with new note creation if save failed
                         }
                     }
                 } else {
@@ -712,7 +790,9 @@ pub fn build_ui(app: &Application) {
         match find_or_create_new_note() {
             Ok(note) => { // note is no longer mut here as update_title_if_empty_and_old is removed
                 // Clear the editor
+                PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = true);
                 text_view_for_new.buffer().set_text(&note.content); // Use content from the new note
+                PROGRAMMATIC_TEXT_CHANGE.with(|ptc| *ptc.borrow_mut() = false);
                 
                 // Update the active note
                 *active_note_for_new.borrow_mut() = Some(ActiveNote {
@@ -728,7 +808,7 @@ pub fn build_ui(app: &Application) {
                 status_label_for_new.set_text("Ready");
                 word_count_label_for_new.set_text(&format!("{} words", word_count));
                 
-                refresh_note_list(&list_box_for_new);
+                refresh_note_list(&list_box_for_new, &active_note_for_new, &window_for_new, &status_label_for_new, &word_count_label_for_new, &text_view_for_new_refresh);
                 select_note_by_title(&list_box_for_new, &note.title);
                 text_view_for_new.grab_focus(); // Focus editor after creating and selecting new note
             },
@@ -749,7 +829,7 @@ pub fn build_ui(app: &Application) {
     window.set_child(Some(&main_overlay));
 
     // Populate the notes list
-    refresh_note_list(&list_box);
+    refresh_note_list(&list_box, &active_note, &window, &status_label, &word_count_label, &text_view);
 
     // Present the window to the user
     window.present();
@@ -767,7 +847,7 @@ fn find_or_create_new_note() -> Result<Note, String> {
 }
 
 /// Refresh the note list with edit and delete buttons on hover
-fn refresh_note_list(list_box: &ListBox) {
+fn refresh_note_list(list_box: &ListBox, active_note_ref: &Rc<RefCell<Option<ActiveNote>>>, window_ref: &ApplicationWindow, status_label_ref: &Label, word_count_label_ref: &Label, text_view_ref: &TextView) {
     // Remove all existing rows
     while let Some(row) = list_box.row_at_index(0) {
         list_box.remove(&row);
@@ -891,32 +971,125 @@ fn refresh_note_list(list_box: &ListBox) {
                 // Store note title in row data for button handlers
                 let note_title = note.title.clone();
                 
-                // Connect the edit button to show rename dialog
-                let list_box_for_edit = list_box.clone();
-                let row_for_edit = row.clone();
-                let note_title_for_edit = note_title.clone(); // Clone for edit button
-                
+                // Clone necessary Rcs and other variables for the closures
+                let active_note_clone_for_edit = active_note_ref.clone();
+                let window_clone_for_edit = window_ref.clone(); // ApplicationWindow is Clone
+                let status_label_clone_for_edit = status_label_ref.clone();
+                let note_title_for_edit_outer = note_title.clone(); // Used to identify if active note is this one
+
+                // Clones for the on_confirm callback of show_rename_dialog
+                let active_note_clone_for_rename_confirm = active_note_ref.clone();
+                let window_clone_for_rename_confirm = window_ref.clone();
+                let status_label_clone_for_rename_confirm = status_label_ref.clone();
+                let list_box_clone_for_rename_confirm = list_box.clone();
+                // We'll also need word_count_label and text_view for later potential updates if active note changes
+                let word_count_label_clone_for_rename_confirm = word_count_label_ref.clone();
+                let text_view_clone_for_rename_confirm = text_view_ref.clone();
+
+                let row_for_button_closure = row.clone(); // Capture the current row for the button
+
                 edit_button.connect_clicked(move |_| {
-                    if let Some(window) = row_for_edit.root().and_then(|r| r.downcast::<gtk::Window>().ok()) {
-                        // Ensure window is ApplicationWindow
-                        if let Ok(app_window) = window.downcast::<ApplicationWindow>() {
-                            show_rename_dialog(
-                                &app_window, // Pass correct type
-                                note_title_for_edit.clone(), // Use the cloned title
-                                clone!(@strong list_box_for_edit, @strong note_title_for_edit => move |new_title| {
-                                    // Get the current note using cloned title
-                                    if let Ok(mut note) = Note::load(&crate::utils::get_notes_dir()
-                                        .join(format!("{}.md", note_title_for_edit))) {
-                                        // Rename it
-                                        if let Ok(()) = note.rename(&new_title) {
-                                            // Refresh list and select the renamed note
-                                            refresh_note_list(&list_box_for_edit);
-                                            select_note_by_title(&list_box_for_edit, &new_title);
-                                        } else {
-                                            // Handle rename error (e.g., show dialog)
-                                            if let Some(root_window) = list_box_for_edit.root().and_then(|r| r.downcast::<ApplicationWindow>().ok()) {
-                                                show_error_dialog(&root_window, "Rename Failed", "Could not rename the note.");
+                    let mut proceed_with_rename = true;
+                    // Check if the note to be renamed is the active note and has changes
+                    if let Some(active_note_guard) = active_note_clone_for_edit.borrow().as_ref() {
+                        if active_note_guard.title == note_title_for_edit_outer && active_note_guard.has_changes {
+                            // Attempt to save
+                            if let Some(active_mut_guard) = active_note_clone_for_edit.borrow_mut().as_mut() {
+                                match active_mut_guard.note.save() {
+                                    Ok(_) => {
+                                        active_mut_guard.has_changes = false;
+                                        status_label_clone_for_edit.set_text("Saved");
+
+                                        // Refresh list after saving before rename
+                                        let list_box_for_refresh = list_box_clone_for_rename_confirm.clone(); 
+                                        let active_note_for_refresh = active_note_clone_for_edit.clone(); 
+                                        let window_for_refresh = window_clone_for_edit.clone();
+                                        let status_label_for_refresh = status_label_clone_for_edit.clone();
+                                        let word_count_label_for_refresh = word_count_label_clone_for_rename_confirm.clone(); 
+                                        let text_view_for_refresh = text_view_clone_for_rename_confirm.clone(); 
+                                        let _original_title_for_reselect = active_mut_guard.title.clone(); // Ensure not prefixed
+
+                                        refresh_note_list(&list_box_for_refresh, &active_note_for_refresh, &window_for_refresh, &status_label_for_refresh, &word_count_label_for_refresh, &text_view_for_refresh);
+                                        select_note_by_title(&list_box_for_refresh, &_original_title_for_reselect); // Ensure uses non-prefixed
+
+                                        let status_label_reset = status_label_clone_for_edit.clone();
+                                        glib::timeout_add_seconds_local(2, move || {
+                                            if status_label_reset.text() == "Saved" {
+                                                status_label_reset.set_text("Ready");
                                             }
+                                            glib::ControlFlow::Break
+                                        });
+                                    }
+                                    Err(e) => {
+                                        show_error_dialog(
+                                            &window_clone_for_edit,
+                                            "Save Error",
+                                            &format!("Failed to save changes to note '{}' before renaming: {}. Rename aborted.", active_mut_guard.title, e),
+                                        );
+                                        proceed_with_rename = false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !proceed_with_rename {
+                        return; // Abort rename
+                    }
+
+                    if let Some(window) = row_for_button_closure.root().and_then(|r| r.downcast::<gtk::Window>().ok()) {
+                        if let Ok(app_window) = window.downcast::<ApplicationWindow>() {
+                            let note_title_for_dialog = note_title_for_edit_outer.clone(); // Title to show in dialog
+                            let original_title_for_confirm = note_title_for_edit_outer.clone(); // Original title to identify note
+
+                            show_rename_dialog(
+                                &app_window,
+                                note_title_for_dialog,
+                                clone!(@strong list_box_clone_for_rename_confirm, 
+                                       @strong original_title_for_confirm,
+                                       @strong active_note_clone_for_rename_confirm,
+                                       @strong window_clone_for_rename_confirm,
+                                       @strong status_label_clone_for_rename_confirm,
+                                       @strong word_count_label_clone_for_rename_confirm,
+                                       @strong text_view_clone_for_rename_confirm => move |new_title| {
+                                    let notes_dir = crate::utils::get_notes_dir();
+                                    let original_file_path = notes_dir.join(format!("{}.md", original_title_for_confirm));
+
+                                    match Note::load(&original_file_path) {
+                                        Ok(mut note_to_rename) => {
+                                            if let Err(e) = note_to_rename.rename(&new_title) {
+                                                show_error_dialog(&window_clone_for_rename_confirm, "Rename Failed", &format!("Could not rename the note: {}", e));
+                                                return;
+                                            }
+
+                                            // If rename was successful, check if it was the active note
+                                            let mut active_note_guard = active_note_clone_for_rename_confirm.borrow_mut();
+                                            if let Some(active) = active_note_guard.as_mut() {
+                                                if active.title == original_title_for_confirm {
+                                                    active.title = new_title.clone();
+                                                    active.path = note_to_rename.path.clone();
+                                                    active.note.title = new_title.clone();
+                                                    active.note.path = note_to_rename.path.clone();
+                                                    active.note.modified_time = note_to_rename.modified_time;
+                                                    active.has_changes = false; // Changes were saved before rename or it's a fresh state
+                                                    window_clone_for_rename_confirm.set_title(Some(&format!("{} - {}", APP_NAME, new_title)));
+                                                    status_label_clone_for_rename_confirm.set_text("Renamed");
+                                                     let status_label_reset = status_label_clone_for_rename_confirm.clone();
+                                                    glib::timeout_add_seconds_local(2, move || {
+                                                        if status_label_reset.text() == "Renamed" {
+                                                           status_label_reset.set_text("Ready");
+                                                        }
+                                                        glib::ControlFlow::Break
+                                                    });
+                                                }
+                                            }
+                                            drop(active_note_guard); // Release borrow
+
+                                            refresh_note_list(&list_box_clone_for_rename_confirm, &active_note_clone_for_rename_confirm, &window_clone_for_rename_confirm, &status_label_clone_for_rename_confirm, &word_count_label_clone_for_rename_confirm, &text_view_clone_for_rename_confirm);
+                                            select_note_by_title(&list_box_clone_for_rename_confirm, &new_title);
+                                        }
+                                        Err(e) => {
+                                             show_error_dialog(&window_clone_for_rename_confirm, "Rename Failed", &format!("Could not load note for renaming: {}", e));
                                         }
                                     }
                                 })
@@ -929,6 +1102,11 @@ fn refresh_note_list(list_box: &ListBox) {
                 let list_box_for_delete = list_box.clone();
                 let row_for_delete = row.clone();
                 let note_title_for_delete = note_title.clone(); // Clone for delete button
+                let active_note_clone_for_delete = active_note_ref.clone();
+                let window_clone_for_delete = window_ref.clone();
+                let status_label_clone_for_delete = status_label_ref.clone();
+                let word_count_label_clone_for_delete = word_count_label_ref.clone();
+                let text_view_clone_for_delete = text_view_ref.clone();
                 
                 delete_button.connect_clicked(move |_| {
                     if let Some(window) = row_for_delete.root().and_then(|r| r.downcast::<gtk::Window>().ok()) {
@@ -939,15 +1117,39 @@ fn refresh_note_list(list_box: &ListBox) {
                                 "Confirm Deletion",
                                 &format!("Delete note \"{}\"?", note_title_for_delete),
                                 "This action cannot be undone.",
-                                clone!(@strong list_box_for_delete, @strong note_title_for_delete => move || {
+                                clone!(@strong list_box_for_delete, 
+                                       @strong note_title_for_delete, 
+                                       @strong active_note_clone_for_delete, 
+                                       @strong window_clone_for_delete, 
+                                       @strong status_label_clone_for_delete, 
+                                       @strong word_count_label_clone_for_delete, 
+                                       @strong text_view_clone_for_delete => move || {
                                     // Get the current note using cloned title
                                     if let Ok(note) = Note::load(&crate::utils::get_notes_dir()
                                         .join(format!("{}.md", note_title_for_delete))) {
                                         // Delete it
                                         if let Ok(()) = note.delete() {
                                             // Refresh the list
-                                            refresh_note_list(&list_box_for_delete);
+                                            refresh_note_list(&list_box_for_delete, &active_note_clone_for_delete, &window_clone_for_delete, &status_label_clone_for_delete, &word_count_label_clone_for_delete, &text_view_clone_for_delete);
                                             // Optionally clear editor if deleted note was active
+                                            // This will be handled by the data consistency fix for delete: Issue #2
+                                            // If the deleted note was active, clear the editor and active_note state.
+                                            let active_note_guard = active_note_clone_for_delete.borrow_mut(); // Removed mut from let binding
+                                            if let Some(active) = active_note_guard.as_ref() {
+                                                if active.title == note_title_for_delete {
+                                                    // Drop the mutable borrow before calling text_view_clone_for_delete methods or other functions that might borrow active_note
+                                                    drop(active_note_guard);
+
+                                                    text_view_clone_for_delete.buffer().set_text("");
+                                                    *active_note_clone_for_delete.borrow_mut() = None;
+                                                    window_clone_for_delete.set_title(Some(APP_NAME));
+                                                    status_label_clone_for_delete.set_text("Ready");
+                                                    word_count_label_clone_for_delete.set_text("0 words");
+                                                    // No specific note to select, list_box.connect_row_selected will handle if selection clears or moves.
+                                                    // text_view_clone_for_delete.grab_focus(); // Focus editor
+                                                }
+                                            }
+
                                         } else {
                                             // Handle delete error
                                             if let Some(root_window) = list_box_for_delete.root().and_then(|r| r.downcast::<ApplicationWindow>().ok()) {
