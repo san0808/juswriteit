@@ -467,6 +467,7 @@ pub fn build_ui(app: &Application) {
                         let count_text = format!("{} words", word_count);
                         status_label_for_select.set_text("Ready"); // Reset status
                         word_count_label_for_select.set_text(&count_text);
+                        text_view_for_select.grab_focus(); // Focus editor
                     },
                     Err(e) => {
                         eprintln!("Error loading note content: {}", e);
@@ -474,6 +475,7 @@ pub fn build_ui(app: &Application) {
                         window_for_select.set_title(Some(&format!("{}", APP_NAME))); // Just use app name
                         status_label_for_select.set_text("Error loading note");
                         *active_note_for_select.borrow_mut() = None;
+                        text_view_for_select.grab_focus(); // Focus editor even on error
                     }
                 }
             } else {
@@ -483,6 +485,7 @@ pub fn build_ui(app: &Application) {
                 window_for_select.set_title(Some("JustWrite"));
                 status_label_for_select.set_text("Ready");
                 word_count_label_for_select.set_text("0 words");
+                text_view_for_select.grab_focus(); // Focus editor
             }
         } else {
             // No row selected
@@ -491,6 +494,7 @@ pub fn build_ui(app: &Application) {
             window_for_select.set_title(Some("JustWrite"));
             status_label_for_select.set_text("Ready");
             word_count_label_for_select.set_text("0 words");
+            text_view_for_select.grab_focus(); // Focus editor
         }
         // No need to call update_ui_for_selection here, as header buttons are removed
     });
@@ -726,6 +730,7 @@ pub fn build_ui(app: &Application) {
                 
                 refresh_note_list(&list_box_for_new);
                 select_note_by_title(&list_box_for_new, &note.title);
+                text_view_for_new.grab_focus(); // Focus editor after creating and selecting new note
             },
             Err(e) => {
                 eprintln!("Error finding or creating new note: {}", e);
@@ -1143,7 +1148,8 @@ fn select_note_by_title(list_box: &ListBox, title_to_find: &str) {
         if let Some(title_label) = title_label_opt {
             if title_label.label() == title_to_find {
                 list_box.select_row(Some(&row));
-                row.grab_focus();
+                // We don't call row.grab_focus() here anymore.
+                // The text_view focus will be handled by the list_box.connect_row_selected callback.
                 return;
             }
         }
