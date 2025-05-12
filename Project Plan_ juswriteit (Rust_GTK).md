@@ -72,7 +72,7 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
   - [ ] **Settings:** Implement a simple settings mechanism (e.g., Gtk::PopoverMenu from a HeaderBar button) for options like auto-save toggle, font settings. Store settings locally (e.g., in \~/.config/juswriteit/settings.toml using serde and toml).
   - [ ] **Robust Error Handling:** Add more specific error dialogs and recovery options.
   - [ ] **Code Cleanup & Documentation:** Ensure code is well-commented, formatted (cargo fmt), and follows Rust best practices. Write README.md.
-  - [ ] **Licensing:** Choose and add an open-source license file (e.g., MIT).
+  - [x] **Licensing:** Choose and add an open-source license file (e.g., MIT).
 
 ### **Phase 4: Packaging & Release**
 
