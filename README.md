@@ -43,7 +43,7 @@ Built with Rust and GTK4, Penscript combines the performance and safety of Rust 
 
 3. Clone and build the project:
    ```bash
-   git clone https://github.com/yourusername/penscript.git
+   git clone https://github.com/san0808/penscript.git
    cd penscript
    cargo build --release
    ```
