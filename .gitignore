@@ -1,2 +1,8 @@
 Cargo.lock
 target/
+
+# AppImage build artifacts
+AppDir/
+appimagetool
+*.AppImage
+releases/
