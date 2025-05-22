@@ -5,7 +5,7 @@ name = "juswriteit"
 version = "0.1.0" # Start with 0.1.0 for initial development
 edition = "2021"
 description = "A minimalist GTK4 writing application"
-authors = ["Your Name <you@example.com>"] # Replace with your details
+authors = ["Sanket Bhat <sanketbhat882002@gmail.com>"] # Replace with your details
 license = "MIT" # Or your preferred license
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
