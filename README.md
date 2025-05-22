@@ -22,6 +22,22 @@ Built with Rust and GTK4, Penscript combines the performance and safety of Rust 
 
 ## Installation
 
+### AppImage (Recommended)
+
+The easiest way to install Penscript is using the AppImage:
+
+1. Download the latest `Penscript-x.x.x-x86_64.AppImage` from the [Releases](https://github.com/san0808/penscript/releases) page
+2. Make the AppImage executable:
+   ```bash
+   chmod +x Penscript-x.x.x-x86_64.AppImage
+   ```
+3. Run the application:
+   ```bash
+   ./Penscript-x.x.x-x86_64.AppImage
+   ```
+
+AppImages can be run on most modern Linux distributions without installation.
+
 ### From Source
 
 1. Install Rust and Cargo:
