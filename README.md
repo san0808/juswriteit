@@ -50,7 +50,7 @@ Built with Rust and GTK4, Penscript combines the performance and safety of Rust 
 
 4. Run the application:
    ```bash
-   ./target/release/juswriteit
+   ./target/release/penscript
    ```
 
 ## Usage
@@ -76,7 +76,7 @@ Built with Rust and GTK4, Penscript combines the performance and safety of Rust 
 
 Notes are stored as Markdown (.md) files in:
 ```
-~/.local/share/juswriteit/notes/
+~/.local/share/penscript/notes/
 ```
 
 Each note is saved as a separate file, with the filename corresponding to the note title.
@@ -93,4 +93,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request 
+5. Open a Pull Request
