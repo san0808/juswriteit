@@ -10,7 +10,7 @@ use crate::utils::get_notes_dir;
 use crate::ui::build_ui;  // Add this import
 
 // Application ID (used by the system to identify the app)
-const APP_ID: &str = "com.example.juswriteit";
+const APP_ID: &str = "dev.penscript.Penscript";
 
 fn main() -> glib::ExitCode {
     // Ensure the notes directory exists before starting the app

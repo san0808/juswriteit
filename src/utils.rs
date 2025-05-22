@@ -6,7 +6,7 @@ use gtk::gio;
 /// Get the path to the notes directory
 pub fn get_notes_dir() -> PathBuf {
     let user_data_dir = glib::user_data_dir();
-    user_data_dir.join("juswriteit/notes")
+    user_data_dir.join("penscript/notes")
 }
 
 /// Show an error dialog using AlertDialog

@@ -1264,7 +1264,7 @@ fn refresh_note_list(list_box: &ListBox, active_note_ref: &Rc<RefCell<Option<Act
 fn load_css() {
     // Define possible CSS file locations
     let css_paths = [
-        "/usr/share/juswriteit/style.css",
+        "/usr/share/penscript/style.css", // Updated for potential system-wide install
         "src/style.css",
         "style.css",
     ];
