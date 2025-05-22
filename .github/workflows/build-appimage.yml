@@ -1,0 +1,51 @@
+name: Build AppImage
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-4-dev libgtk-4-bin libgtk-4-common
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-appimage
+      run: |
+        wget -c "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+        chmod +x appimagetool
+
+    - name: Build release binary
+      run: cargo build --release
+
+    - name: Build AppImage
+      run: |
+        chmod +x build-appimage.sh
+        ./build-appimage.sh
+      
+    - name: Upload AppImage artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: penscript-appimage
+        path: Penscript-*.AppImage
+        
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: Penscript-*.AppImage
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
