@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Penscript
+Comment=Minimalist Markdown note-taking app
+Exec=/home/sanket08/Desktop/projects/juswriteit/target/release/juswriteit
+Icon=Icon=/home/sanket08/Desktop/projects/juswriteit/assets/icons/com.github.san0808.penscript.svg
+Terminal=false
+Type=Application
+Categories=Utility;TextEditor;
+StartupNotify=true
