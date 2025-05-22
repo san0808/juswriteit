@@ -68,7 +68,7 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
   - [ ] **Editor Improvements:**
      * [ ] Basic font selection/size options (maybe via Gtk::FontButton in a settings popover).
      * [ ] Consider basic Markdown syntax highlighting (could be complex, might use an external crate if available or keep it simple).
-  - [ ] **Search/Filter Notes:** Add a Gtk::SearchEntry to filter the note list based on title/filename.
+  - [x] **Search/Filter Notes:** Add a Gtk::SearchEntry to filter the note list based on title/filename.
   - [ ] **Settings:** Implement a simple settings mechanism (e.g., Gtk::PopoverMenu from a HeaderBar button) for options like auto-save toggle, font settings. Store settings locally (e.g., in \~/.config/juswriteit/settings.toml using serde and toml).
   - [ ] **Robust Error Handling:** Add more specific error dialogs and recovery options.
   - [ ] **Code Cleanup & Documentation:** Ensure code is well-commented, formatted (cargo fmt), and follows Rust best practices. Write README.md.
@@ -78,12 +78,12 @@ Goal: A minimalist, native Linux desktop app for focused writing, storing notes 
 
 * **Goal:** Make the application easily installable on target Linux systems.
 * **Tasks:**
-  - [ ] **Build Scripting:** Ensure cargo build \--release produces an optimized binary.
+  - [x] **Build Scripting:** Ensure cargo build \--release produces an optimized binary. (Verified with current Cargo.toml)
   - [ ] **App Icon:** Create/add an application icon (.desktop file integration).
   - [ ] **AppImage:** Create a build process for generating an AppImage.
   - [ ] **Flatpak (Optional):** Create a Flatpak manifest for packaging.
   - [ ] **Testing:** Test thoroughly on Manjaro (Arch-based), Ubuntu (Debian-based), and potentially Fedora.
-  - [ ] **GitHub Release:** Create a repository, push code, tag a v1.0 release, and upload packaged artifacts.
+  - [x] **GitHub Release:** Create a repository, push code, tag a v0.1.0 release. (Current step)
 
 ## **3\. Key Crates**
 
